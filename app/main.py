@@ -1,15 +1,34 @@
-from typing import Union
-
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from app.database.engine import create_db_and_tables
+from app.routers import auth
+from app.models import user
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create database and tables on startup
+    create_db_and_tables()
+    yield
+
+app = FastAPI(
+    title="Repensar Multiplatform Backend",
+    description="Backend API for Repensar multiplatform application",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Include routers
+app.include_router(auth.router)
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {
+        "message": "Welcome to Repensar Backend API",
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
 
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
