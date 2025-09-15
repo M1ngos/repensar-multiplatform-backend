@@ -89,3 +89,34 @@ def reset_login_attempts(db: Session, user):
     user.locked_until = None
     user.last_login = datetime.now(timezone.utc)
     db.commit()
+
+def create_user_with_type(db: Session, user_data: Dict[str, Any]):
+    """Create a new user with specified user type."""
+    from sqlmodel import select
+    from app.models.user import User, UserType
+    
+    # Check if email already exists
+    existing_user = db.exec(select(User).where(User.email == user_data["email"])).first()
+    if existing_user:
+        return None
+    
+    # Get user type
+    user_type = db.exec(select(UserType).where(UserType.name == user_data.get("user_type", "volunteer"))).first()
+    if not user_type:
+        return None
+    
+    # Create user
+    user = User(
+        name=user_data["name"],
+        email=user_data["email"],
+        password_hash=user_data["password_hash"],
+        phone=user_data.get("phone"),
+        user_type_id=user_type.id,
+        is_active=True,
+        is_email_verified=False
+    )
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

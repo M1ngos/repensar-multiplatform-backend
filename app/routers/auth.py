@@ -1,15 +1,15 @@
 # app/routers/auth.py
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Header
+from sqlmodel import Session, select
+from typing import Dict, Any, Optional
 
 from app.core.auth import (
     verify_password, get_password_hash, create_access_token, 
     create_refresh_token, verify_token, is_user_locked, 
     increment_login_attempts, reset_login_attempts, generate_token
 )
-from app.core.deps import get_current_active_user, get_db
+from app.core.deps import get_current_active_user, get_db, get_current_user
 from app.core.config import settings
 from app.models.user import User, UserType
 from app.schemas.auth import (
@@ -19,13 +19,49 @@ from app.schemas.auth import (
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
+@router.get("/validate-token", response_model=Dict[str, Any])
+async def validate_token(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Validate current JWT token and return user info."""
+    try:
+        user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
+        
+        return {
+            "valid": True,
+            "user": {
+                "id": current_user.id,
+                "name": current_user.name,
+                "email": current_user.email,
+                "user_type": user_type.name if user_type else None,
+                "is_active": current_user.is_active,
+                "is_email_verified": current_user.is_email_verified
+            }
+        }
+    except Exception:
+        return {"valid": False, "user": None}
+
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
+    # Check if user is already logged in with valid token
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        token_data = verify_token(token)
+        if token_data:
+            existing_user = db.exec(select(User).where(User.id == token_data.user_id)).first()
+            if existing_user and existing_user.is_active and existing_user.email == login_data.email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User is already logged in with a valid token"
+                )
+    
     # Find user by email
-    user = db.query(User).filter(User.email == login_data.email).first()
+    user = db.exec(select(User).where(User.email == login_data.email)).first()
     
     if not user:
         raise HTTPException(
@@ -80,14 +116,15 @@ async def register(
     db: Session = Depends(get_db)
 ):
     # Check if user already exists
-    if db.query(User).filter(User.email == register_data.email).first():
+    existing_user = db.exec(select(User).where(User.email == register_data.email)).first()
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
     # Get user type
-    user_type = db.query(UserType).filter(UserType.name == register_data.user_type).first()
+    user_type = db.exec(select(UserType).where(UserType.name == register_data.user_type)).first()
     if not user_type:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -128,7 +165,7 @@ async def refresh_token(
         )
     
     # Find user and verify stored refresh token
-    user = db.query(User).filter(User.id == token_data.user_id).first()
+    user = db.exec(select(User).where(User.id == token_data.user_id)).first()
     if not user or not user.refresh_token_hash:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -182,7 +219,7 @@ async def get_current_user_profile(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    user_type = db.query(UserType).filter(UserType.id == current_user.user_type_id).first()
+    user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
     
     return UserProfile(
         id=current_user.id,
@@ -225,7 +262,7 @@ async def forgot_password(
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    user = db.query(User).filter(User.email == reset_data.email).first()
+    user = db.exec(select(User).where(User.email == reset_data.email)).first()
     
     if user:
         # Generate reset token
@@ -244,7 +281,7 @@ async def reset_password(
     reset_data: PasswordReset,
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.password_reset_token == reset_data.token).first()
+    user = db.exec(select(User).where(User.password_reset_token == reset_data.token)).first()
     
     if not user or not user.password_reset_expires:
         raise HTTPException(
@@ -276,7 +313,7 @@ async def verify_email(
     token: str,
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.email_verification_token == token).first()
+    user = db.exec(select(User).where(User.email_verification_token == token)).first()
     
     if not user or not user.email_verification_expires:
         raise HTTPException(
@@ -304,7 +341,7 @@ async def resend_verification(
     request_data: ResendVerificationRequest,
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.email == request_data.email).first()
+    user = db.exec(select(User).where(User.email == request_data.email)).first()
     
     if not user:
         # Don't reveal if email exists or not
@@ -324,3 +361,72 @@ async def resend_verification(
     # TODO: Send verification email in background task
     
     return {"message": "Verification email sent successfully"}
+
+@router.get("/status", response_model=Dict[str, Any])
+async def get_auth_status(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Check authentication status without requiring valid token."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "No token provided"
+        }
+    
+    token = authorization.split(" ")[1]
+    token_data = verify_token(token)
+    
+    if not token_data:
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "Invalid token"
+        }
+    
+    user = db.exec(select(User).where(User.id == token_data.user_id)).first()
+    if not user:
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "User not found"
+        }
+    
+    user_type = db.exec(select(UserType).where(UserType.id == user.user_type_id)).first()
+    
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "user_type": user_type.name if user_type else None,
+            "is_active": user.is_active,
+            "is_email_verified": user.is_email_verified,
+            "permissions": user_type.permissions if user_type else None,
+            "dashboard_config": user_type.dashboard_config if user_type else None
+        },
+        "message": "Valid token"
+    }
+
+@router.get("/permissions", response_model=Dict[str, Any])
+async def get_user_permissions(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user's permissions and dashboard configuration."""
+    user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
+    
+    if not user_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User type not found"
+        )
+    
+    return {
+        "user_type": user_type.name,
+        "permissions": user_type.permissions,
+        "dashboard_config": user_type.dashboard_config,
+        "description": user_type.description
+    }
