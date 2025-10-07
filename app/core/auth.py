@@ -78,10 +78,10 @@ def is_user_locked(user) -> bool:
 
 def increment_login_attempts(db: Session, user):
     user.login_attempts = (user.login_attempts or 0) + 1
-    
+
     if user.login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
         user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=settings.LOCKOUT_DURATION_MINUTES)
-    
+
     db.commit()
 
 def reset_login_attempts(db: Session, user):

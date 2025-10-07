@@ -1,5 +1,5 @@
-from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, List
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
 
@@ -9,6 +9,8 @@ class UserType(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, unique=True, index=True)
     description: Optional[str] = Field(default=None, max_length=255)
+    permissions: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    dashboard_config: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships

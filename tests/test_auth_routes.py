@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app.models.user import User
+from app.core.auth import generate_token
 
 class TestAuthRegistration:
     def test_register_success(self, client: TestClient, user_types):
@@ -152,8 +153,13 @@ class TestTokenRefresh:
         assert "Invalid refresh token" in data["detail"]
 
 class TestUserProfile:
-    def test_get_current_user_success(self, client: TestClient, auth_headers):
-        response = client.get("/auth/me", headers=auth_headers)
+    def test_get_current_user_success(self, client: TestClient, test_user):
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.get("/auth/me", headers=headers)
         
         assert response.status_code == 200
         data = response.json()
@@ -169,8 +175,13 @@ class TestUserProfile:
         assert response.status_code == 403
 
 class TestLogout:
-    def test_logout_success(self, client: TestClient, auth_headers):
-        response = client.post("/auth/logout", headers=auth_headers)
+    def test_logout_success(self, client: TestClient, test_user):
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.post("/auth/logout", headers=headers)
         
         assert response.status_code == 200
         data = response.json()
@@ -182,25 +193,35 @@ class TestLogout:
         assert response.status_code == 403
 
 class TestPasswordChange:
-    def test_change_password_success(self, client: TestClient, auth_headers):
+    def test_change_password_success(self, client: TestClient, test_user):
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
         password_data = {
             "current_password": "TestPassword123",
             "new_password": "NewPassword123"
         }
         
-        response = client.post("/auth/change-password", json=password_data, headers=auth_headers)
+        response = client.post("/auth/change-password", json=password_data, headers=headers)
         
         assert response.status_code == 200
         data = response.json()
         assert "Password changed successfully" in data["message"]
     
-    def test_change_password_wrong_current(self, client: TestClient, auth_headers):
+    def test_change_password_wrong_current(self, client: TestClient, test_user):
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
         password_data = {
             "current_password": "WrongPassword",
             "new_password": "NewPassword123"
         }
         
-        response = client.post("/auth/change-password", json=password_data, headers=auth_headers)
+        response = client.post("/auth/change-password", json=password_data, headers=headers)
         
         assert response.status_code == 400
         data = response.json()
@@ -233,7 +254,7 @@ class TestPasswordReset:
     def test_reset_password_success(self, client: TestClient, session, test_user):
         # Set reset token for user
         test_user.password_reset_token = "valid_reset_token"
-        test_user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        test_user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
         session.commit()
         
         reset_data = {
@@ -261,6 +282,12 @@ class TestPasswordReset:
 
 class TestEmailVerification:
     def test_verify_email_success(self, client: TestClient, session, unverified_user):
+        unverified_user.email_verification_token = generate_token()
+        unverified_user.email_verification_expires = datetime.utcnow() + timedelta(hours=1)
+        session.add(unverified_user)
+        session.commit()
+        session.refresh(unverified_user)
+
         response = client.post(f"/auth/verify-email?token={unverified_user.email_verification_token}")
         
         assert response.status_code == 200
@@ -279,15 +306,91 @@ class TestEmailVerification:
         assert "Invalid or expired verification token" in data["detail"]
     
     def test_resend_verification_success(self, client: TestClient, unverified_user):
-        response = client.post(f"/auth/resend-verification?email={unverified_user.email}")
+        response = client.post("/auth/resend-verification", json={"email": unverified_user.email})
         
         assert response.status_code == 200
         data = response.json()
         assert "Verification email sent successfully" in data["message"]
     
     def test_resend_verification_already_verified(self, client: TestClient, test_user):
-        response = client.post(f"/auth/resend-verification?email={test_user.email}")
+        response = client.post("/auth/resend-verification", json={"email": test_user.email})
         
         assert response.status_code == 400
         data = response.json()
         assert "Email is already verified" in data["detail"]
+
+class TestAuthValidateToken:
+    def test_validate_token_success(self, client: TestClient, test_user):
+        # Login to get token
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.get("/auth/validate-token", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is True
+        assert "user" in data
+        assert data["user"]["email"] == test_user.email
+
+    def test_validate_token_invalid(self, client: TestClient):
+        response = client.get("/auth/validate-token", headers={"Authorization": "Bearer invalidtoken"})
+        assert response.status_code == 401
+
+    def test_validate_token_no_token(self, client: TestClient):
+        response = client.get("/auth/validate-token")
+        assert response.status_code == 403
+
+class TestAuthStatus:
+    def test_auth_status_authenticated(self, client: TestClient, test_user):
+        # Login to get token
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.get("/auth/status", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["authenticated"] is True
+        assert data["user"]["email"] == test_user.email
+        assert "permissions" in data["user"]
+        assert "dashboard_config" in data["user"]
+
+    def test_auth_status_no_token(self, client: TestClient):
+        response = client.get("/auth/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["authenticated"] is False
+        assert data["user"] is None
+        assert data["message"] == "No token provided"
+
+    def test_auth_status_invalid_token(self, client: TestClient):
+        response = client.get("/auth/status", headers={"Authorization": "Bearer invalidtoken"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["authenticated"] is False
+        assert data["user"] is None
+        assert data["message"] == "Invalid token"
+
+class TestAuthPermissions:
+    def test_get_user_permissions_success(self, client: TestClient, test_user):
+        login_data = {"email": test_user.email, "password": "TestPassword123"}
+        response = client.post("/auth/login", json=login_data)
+        token = response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.get("/auth/permissions", headers=headers)
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert "user_type" in data
+        assert "permissions" in data
+        assert "dashboard_config" in data
+        assert "description" in data
+
+    def test_get_user_permissions_no_token(self, client: TestClient):
+        response = client.get("/auth/permissions")
+        
+        assert response.status_code == 403

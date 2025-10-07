@@ -140,7 +140,7 @@ async def register(
         user_type_id=user_type.id,
         is_email_verified=False,
         email_verification_token=generate_token(),
-        email_verification_expires=datetime.now(timezone.utc) + timedelta(hours=24)
+        email_verification_expires=datetime.now(timezone.utc)  + timedelta(hours=24)
     )
     
     db.add(user)
@@ -173,7 +173,7 @@ async def refresh_token(
         )
     
     # Check if refresh token is expired
-    if user.refresh_token_expires and user.refresh_token_expires < datetime.now(timezone.utc):
+    if user.refresh_token_expires and user.refresh_token_expires < datetime.now(timezone.utc) :
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token expired"
@@ -193,7 +193,7 @@ async def refresh_token(
     
     # Update stored refresh token
     user.refresh_token_hash = get_password_hash(new_refresh_token)
-    user.refresh_token_expires = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    user.refresh_token_expires = datetime.now(timezone.utc)  + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     db.commit()
     
     return Token(
@@ -267,7 +267,7 @@ async def forgot_password(
     if user:
         # Generate reset token
         user.password_reset_token = generate_token()
-        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        user.password_reset_expires = datetime.now(timezone.utc)  + timedelta(hours=1)
         db.commit()
         
         # TODO: Send password reset email in background task
@@ -289,7 +289,7 @@ async def reset_password(
             detail="Invalid or expired reset token"
         )
     
-    if user.password_reset_expires < datetime.now(timezone.utc):
+    if user.password_reset_expires < datetime.now(timezone.utc) :
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset token has expired"
@@ -321,7 +321,7 @@ async def verify_email(
             detail="Invalid or expired verification token"
         )
     
-    if user.email_verification_expires < datetime.now(timezone.utc):
+    if user.email_verification_expires < datetime.now(timezone.utc) :
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification token has expired"
@@ -355,7 +355,7 @@ async def resend_verification(
     
     # Generate new verification token
     user.email_verification_token = generate_token()
-    user.email_verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    user.email_verification_expires = datetime.now(timezone.utc)  + timedelta(hours=24)
     db.commit()
     
     # TODO: Send verification email in background task
