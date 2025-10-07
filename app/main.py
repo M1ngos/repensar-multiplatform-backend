@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
 from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers
-from app.models import user, volunteer
+from app.routers import auth, volunteers, projects, tasks, resources, reports
+from app.models import user, volunteer, project, task, resource, analytics
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,6 +21,10 @@ app = FastAPI(
 # Include routers
 app.include_router(auth.router)
 app.include_router(volunteers.router)
+app.include_router(projects.router)
+app.include_router(tasks.router)
+app.include_router(resources.router)
+app.include_router(reports.router)
 
 @app.get("/")
 def read_root():

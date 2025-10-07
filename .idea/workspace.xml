@@ -4,12 +4,23 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="">
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="pre auto">
+      <change afterPath="$PROJECT_DIR$/app/crud/project.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/crud/resource.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/crud/task.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/crud/volunteer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/models/analytics.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/models/project.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/models/resource.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/models/task.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/models/volunteer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/routers/projects.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/routers/reports.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/routers/resources.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/routers/tasks.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/routers/volunteers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/auth.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/auth.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,7 +54,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
     &quot;last_opened_file_path&quot;: &quot;/opt/dev-container/Projects/repensar-multiplatform-backend&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.intellij.pycharm.community.ide.impl.configuration.PythonContentEntriesConfigurable&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -83,7 +94,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-8753aad8314d-d902c0275401-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-252.25557.178" />
+        <option value="bundled-python-sdk-164cda30dcd9-0af03a5fa574-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.26830.99" />
       </set>
     </attachedChunks>
   </component>
@@ -95,6 +106,30 @@
       <option name="presentableId" value="Default" />
       <updated>1756344703253</updated>
     </task>
+    <task id="LOCAL-00001" summary="pre auto">
+      <option name="closed" value="true" />
+      <created>1757950837618</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1757950837618</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="pre auto" />
+    <option name="LAST_COMMIT_MESSAGE" value="pre auto" />
   </component>
 </project>
