@@ -78,3 +78,11 @@ class RefreshTokenRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
+class GoogleAuthURL(BaseModel):
+    authorization_url: str
+    state: str
+
+class GoogleAuthCallback(BaseModel):
+    code: str
+    state: str

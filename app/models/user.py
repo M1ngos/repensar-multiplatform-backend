@@ -22,10 +22,15 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     email: str = Field(unique=True, index=True, max_length=255)
-    password_hash: str = Field(max_length=255)
+    password_hash: Optional[str] = Field(default=None, max_length=255)  # Optional for OAuth users
     phone: Optional[str] = Field(default=None, max_length=20)
     department: Optional[str] = Field(default=None, max_length=50)
     employee_id: Optional[str] = Field(default=None, max_length=50)
+
+    # OAuth fields
+    oauth_provider: Optional[str] = Field(default=None, max_length=50)  # e.g., "google", "github"
+    oauth_provider_id: Optional[str] = Field(default=None, max_length=255)  # Provider's user ID
+    profile_picture: Optional[str] = Field(default=None, max_length=500)  # URL to profile picture
     
     # User type relationship
     user_type_id: int = Field(foreign_key="user_types.id")

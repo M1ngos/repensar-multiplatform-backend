@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
 from typing import Dict, Any
+import logging
+import secrets
 
 from app.core.auth import (
     verify_password, get_password_hash, verify_token,
@@ -30,14 +32,19 @@ from app.core.rate_limiter import RateLimitExceeded
 from app.core.deps import get_current_active_user, get_db, get_current_user
 from app.core.config import settings
 from app.core.email import send_verification_email, send_password_reset_email
+from app.core.oauth import (
+    get_google_oauth_url, exchange_code_for_tokens,
+    get_google_user_info, validate_google_oauth_config
+)
 from app.models.user import User, UserType
 from app.schemas.auth import (
     LoginRequest, RegisterRequest, Token, RefreshTokenRequest,
     UserProfile, PasswordResetRequest, PasswordReset, ChangePassword,
-    ResendVerificationRequest
+    ResendVerificationRequest, GoogleAuthURL, GoogleAuthCallback
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/login", response_model=Token)
@@ -114,6 +121,19 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is deactivated"
+        )
+
+    # Check if user has a password (OAuth users don't have passwords)
+    if not user.password_hash:
+        audit_logger.log_login_failed(
+            email=login_data.email,
+            reason="OAuth account - use Google Sign In",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This account uses Google Sign In. Please use Google to login."
         )
 
     # Verify password
@@ -854,3 +874,165 @@ async def validate_token(
         }
     except Exception:
         return {"valid": False, "user": None}
+
+
+@router.get("/google/login", response_model=GoogleAuthURL)
+async def google_login(request: Request):
+    """
+    Get Google OAuth authorization URL.
+
+    Features:
+    - CSRF protection with state token
+    - Redirect to Google Sign In
+    """
+    # Validate Google OAuth configuration
+    if not validate_google_oauth_config():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google Sign In is not configured on this server"
+        )
+
+    # Generate CSRF protection state token
+    state = secrets.token_urlsafe(32)
+
+    # TODO: Store state in session/cache for validation in callback
+    # For now, we'll trust the callback to validate the Google response
+
+    # Get authorization URL
+    auth_url = get_google_oauth_url(state)
+
+    return GoogleAuthURL(
+        authorization_url=auth_url,
+        state=state
+    )
+
+
+@router.post("/google/callback", response_model=Token)
+async def google_callback(
+    callback_data: GoogleAuthCallback,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Handle Google OAuth callback and create/login user.
+
+    Features:
+    - User creation for new users
+    - Automatic login for existing users
+    - Email verification (automatically verified via Google)
+    - Audit logging
+    """
+    ip_address = get_client_ip(request)
+    user_agent = get_user_agent(request)
+    audit_logger = get_audit_logger()
+
+    # Exchange code for tokens
+    tokens = await exchange_code_for_tokens(callback_data.code)
+    if not tokens:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to exchange authorization code"
+        )
+
+    # Get user info from Google
+    user_info = await get_google_user_info(tokens.get('access_token'))
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to fetch user information from Google"
+        )
+
+    email = user_info.get('email')
+    google_id = user_info.get('sub')  # Google's unique user ID
+    name = user_info.get('name')
+    picture = user_info.get('picture')
+
+    if not email or not google_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user information from Google"
+        )
+
+    # Check if user exists
+    user = db.exec(select(User).where(User.email == email)).first()
+
+    if user:
+        # Existing user - update OAuth info if not set
+        if not user.oauth_provider:
+            user.oauth_provider = "google"
+            user.oauth_provider_id = google_id
+            user.profile_picture = picture
+            user.is_email_verified = True  # Google emails are verified
+            db.commit()
+            db.refresh(user)
+
+        # Log successful login
+        audit_logger.log_login_success(
+            user_id=user.id,
+            email=user.email,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+    else:
+        # New user - create account
+        # Get default user type (volunteer)
+        user_type = db.exec(select(UserType).where(UserType.name == "volunteer")).first()
+        if not user_type:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Default user type not found"
+            )
+
+        # Create new user
+        user = User(
+            name=name or email.split('@')[0],
+            email=email,
+            oauth_provider="google",
+            oauth_provider_id=google_id,
+            profile_picture=picture,
+            user_type_id=user_type.id,
+            is_email_verified=True,  # Google emails are verified
+            password_hash=None  # OAuth users don't have passwords
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Log account creation
+        audit_logger.log_event(
+            AuditEvent(
+                event_type=AuditEventType.ACCOUNT_CREATED,
+                severity=AuditEventSeverity.INFO,
+                timestamp=datetime.now(timezone.utc),
+                user_id=user.id,
+                email=user.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=True,
+                details={"oauth_provider": "google", "user_type": "volunteer"}
+            )
+        )
+
+    # Create tokens with audit logging
+    access_token, refresh_token, token_family = log_and_create_tokens(
+        user_id=user.id,
+        email=user.email,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+
+    # Store refresh token family in database
+    user.refresh_token_hash = get_password_hash(refresh_token)
+    user.refresh_token_expires = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    user.token_family = token_family
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )

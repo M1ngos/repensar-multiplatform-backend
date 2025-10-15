@@ -73,13 +73,15 @@ async def send_email(
         message.attach(part2)
 
         # Send email
+        # Port 587: Use STARTTLS (start_tls=True)
+        # Port 465: Use implicit TLS (use_tls=True)
         await aiosmtplib.send(
             message,
             hostname=settings.SMTP_HOST,
             port=settings.SMTP_PORT,
             username=settings.SMTP_USERNAME,
             password=settings.SMTP_PASSWORD,
-            use_tls=True if settings.SMTP_PORT == 587 else False,
+            use_tls=True if settings.SMTP_PORT == 465 else False,
             start_tls=True if settings.SMTP_PORT == 587 else False,
         )
 
