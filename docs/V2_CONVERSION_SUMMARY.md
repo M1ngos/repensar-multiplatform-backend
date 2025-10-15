@@ -274,7 +274,7 @@ LOCKOUT_DURATION_MINUTES = 30      # 30 minutes
 | "Redis connection failed" | Redis optional, uses in-memory fallback |
 | "Token reuse detected" | Normal - ensures security, re-login |
 
-See [`DEPLOYMENT_CHECKLIST.md`](./DEPLOYMENT_CHECKLIST.md) for comprehensive troubleshooting.
+See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.md) for comprehensive troubleshooting.
 
 ## 📞 Support
 

@@ -29,6 +29,7 @@ from app.core.audit_log import get_audit_logger
 from app.core.rate_limiter import RateLimitExceeded
 from app.core.deps import get_current_active_user, get_db, get_current_user
 from app.core.config import settings
+from app.core.email import send_verification_email, send_password_reset_email
 from app.models.user import User, UserType
 from app.schemas.auth import (
     LoginRequest, RegisterRequest, Token, RefreshTokenRequest,
@@ -483,9 +484,16 @@ async def register(
         )
     )
 
-    # TODO: Send verification email in background task
-    # from app.core.email import send_verification_email
-    # background_tasks.add_task(send_verification_email, user.email, user.email_verification_token)
+    # Send verification email
+    try:
+        await send_verification_email(
+            email=user.email,
+            token=user.email_verification_token,
+            name=user.name
+        )
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {user.email}: {e}")
+        # Continue even if email fails - user is registered
 
     return {"message": "User registered successfully. Please check your email to verify your account."}
 
@@ -579,8 +587,17 @@ async def resend_verification(
     user.email_verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
     db.commit()
 
-    # Log event
+    # Send verification email
+    try:
+        await send_verification_email(
+            email=user.email,
+            token=user.email_verification_token,
+            name=user.name
+        )
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {user.email}: {e}")
 
+    # Log event
     audit_logger.log_event(
         AuditEvent(
             event_type=AuditEventType.EMAIL_VERIFICATION_SENT,
@@ -592,8 +609,6 @@ async def resend_verification(
             success=True
         )
     )
-
-    # TODO: Send verification email in background task
 
     return {"message": "Verification email sent successfully"}
 
@@ -634,8 +649,17 @@ async def forgot_password(
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
 
-        # Log event
+        # Send password reset email
+        try:
+            await send_password_reset_email(
+                email=user.email,
+                token=user.password_reset_token,
+                name=user.name
+            )
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {user.email}: {e}")
 
+        # Log event
         audit_logger.log_event(
             AuditEvent(
                 event_type=AuditEventType.PASSWORD_RESET_REQUESTED,
@@ -647,10 +671,6 @@ async def forgot_password(
                 success=True
             )
         )
-
-        # TODO: Send password reset email in background task
-        # from app.core.email import send_password_reset_email
-        # background_tasks.add_task(send_password_reset_email, user.email, user.password_reset_token)
 
     # Always return success to prevent email enumeration
     return {"message": "If an account with this email exists, you will receive a password reset link."}
