@@ -17,6 +17,8 @@ def password_validator(v: str) -> str:
 class TokenData(BaseModel):
     user_id: int
     email: Optional[str] = None
+    jti: Optional[str] = None
+    token_family: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

@@ -17,7 +17,7 @@ from app.schemas.auth import (
     PasswordReset, ChangePassword, UserProfile, RefreshTokenRequest, ResendVerificationRequest
 )
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth/v1", tags=["authentication-v1-legacy"])
 
 @router.get("/validate-token", response_model=Dict[str, Any])
 async def validate_token(

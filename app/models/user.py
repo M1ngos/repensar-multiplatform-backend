@@ -50,6 +50,7 @@ class User(SQLModel, table=True):
     # Token management
     refresh_token_hash: Optional[str] = Field(default=None, max_length=255)
     refresh_token_expires: Optional[datetime] = Field(default=None)
+    token_family: Optional[str] = Field(default=None, max_length=255)
     
     # Timestamps
     last_login: Optional[datetime] = Field(default=None)

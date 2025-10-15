@@ -3,11 +3,12 @@ from typing import Optional
 import os
 
 class Settings(BaseSettings):
-    SECRET_KEY: str = "super-secret-missile-key-codes"
+    # JWT Configuration
+    SECRET_KEY: str = "super-secret-missile-key-codes"  # IMPORTANT: Change in production!
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    
+
     # Database
     DATABASE_URL: Optional[str] = None
     DB_HOST: str = "localhost"
@@ -15,6 +16,9 @@ class Settings(BaseSettings):
     DB_USER: str = "repensar"
     DB_PASSWORD: str = "repensar_password"
     DB_NAME: str = "repensar_db"
+
+    # Redis (optional - for production)
+    REDIS_URL: Optional[str] = None  # e.g., "redis://localhost:6379/0"
     
     @property
     def database_url(self) -> str:

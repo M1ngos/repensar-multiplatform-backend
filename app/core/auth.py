@@ -9,6 +9,15 @@ import string
 
 from app.core.config import settings
 from app.schemas.auth import TokenData
+from app.core.token_manager import (
+    generate_jti,
+    generate_token_family,
+    TokenMetadata,
+    TokenStatus,
+    get_token_blacklist,
+    is_token_revoked,
+    revoke_token,
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -19,52 +28,168 @@ def get_password_hash(password: str) -> str:
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed_password.decode('utf-8')
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None
+) -> str:
+    """
+    Create an access token with enhanced security claims.
+
+    Args:
+        data: Token payload data (must include 'sub' for user ID)
+        expires_delta: Custom expiration time
+        ip_address: Client IP address for tracking
+        user_agent: Client user agent for tracking
+
+    Returns:
+        Encoded JWT access token
+    """
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
+
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # Generate unique JWT ID
+    jti = generate_jti()
+
     # Ensure 'sub' is a string as required by JWT spec
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
-    
-    to_encode.update({"exp": expire, "type": "access"})
+
+    # Add security claims
+    to_encode.update({
+        "exp": expire,
+        "iat": now,
+        "jti": jti,
+        "type": "access",
+    })
+
+    # Store token metadata for tracking and revocation
+    user_id = int(data.get("sub", 0))
+    if user_id:
+        metadata = TokenMetadata(
+            jti=jti,
+            user_id=user_id,
+            token_family="",  # Access tokens don't use families
+            issued_at=now,
+            expires_at=expire,
+            token_type="access",
+            issued_from_ip=ip_address,
+            user_agent=user_agent,
+            status=TokenStatus.ACTIVE
+        )
+        blacklist = get_token_blacklist()
+        blacklist.store_token_metadata(metadata)
+
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    token_family: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None
+) -> tuple[str, str]:
+    """
+    Create a refresh token with rotation support.
+
+    Args:
+        data: Token payload data (must include 'sub' for user ID)
+        expires_delta: Custom expiration time
+        token_family: Token family ID for rotation tracking (auto-generated if not provided)
+        ip_address: Client IP address for tracking
+        user_agent: Client user agent for tracking
+
+    Returns:
+        Tuple of (encoded_jwt, token_family)
+    """
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
+
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    
+        expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    # Generate unique JWT ID and token family
+    jti = generate_jti()
+    if not token_family:
+        token_family = generate_token_family()
+
     # Ensure 'sub' is a string as required by JWT spec
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
-    
-    to_encode.update({"exp": expire, "type": "refresh"})
+
+    # Add security claims
+    to_encode.update({
+        "exp": expire,
+        "iat": now,
+        "jti": jti,
+        "type": "refresh",
+        "family": token_family,
+    })
+
+    # Store token metadata for tracking and revocation
+    user_id = int(data.get("sub", 0))
+    if user_id:
+        metadata = TokenMetadata(
+            jti=jti,
+            user_id=user_id,
+            token_family=token_family,
+            issued_at=now,
+            expires_at=expire,
+            token_type="refresh",
+            issued_from_ip=ip_address,
+            user_agent=user_agent,
+            status=TokenStatus.ACTIVE
+        )
+        blacklist = get_token_blacklist()
+        blacklist.store_token_metadata(metadata)
+
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+    return encoded_jwt, token_family
 
 def verify_token(token: str, token_type: str = "access") -> Optional[TokenData]:
+    """
+    Verify a JWT token and check if it has been revoked.
+
+    Args:
+        token: The JWT token to verify
+        token_type: Expected token type ("access" or "refresh")
+
+    Returns:
+        TokenData if valid, None otherwise
+    """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_str: Optional[str] = payload.get("sub")
         email: Optional[str] = payload.get("email")
         token_type_payload: Optional[str] = payload.get("type")
-        
+        jti: Optional[str] = payload.get("jti")
+
         if user_id_str is None or token_type_payload != token_type:
             return None
-        
+
+        # Check if token has been revoked
+        if jti and is_token_revoked(jti):
+            return None
+
         try:
             user_id = int(user_id_str)
         except (ValueError, TypeError):
             return None
-            
-        return TokenData(user_id=user_id, email=email)
+
+        # Return token data with jti and family for rotation support
+        token_data = TokenData(user_id=user_id, email=email)
+        token_data.jti = jti
+        token_data.token_family = payload.get("family")
+        return token_data
     except JWTError:
         return None
 

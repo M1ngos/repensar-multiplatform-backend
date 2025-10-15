@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "pydantic-settings>=2.0.0",
     "pytest>=8.4.2",
+    "redis>=6.4.0",
 ]
 
 [tool.pytest.ini_options]
@@ -31,4 +32,7 @@ test = [
     "pytest-asyncio>=0.21.0",
     "httpx>=0.24.0",
     "pytest-mock>=3.11.0",
+]
+production = [
+    "redis>=5.0.0",  # For distributed token blacklist and rate limiting
 ]
