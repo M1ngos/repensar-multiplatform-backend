@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # JWT Configuration
-    SECRET_KEY: str = "super-secret-missile-key-codes"  # IMPORTANT: Change in production!
+    SECRET_KEY: str = "St2vToKITZj7HxUvzfiegjf8LMfaCrwOuIIetLNIe8Y="  # IMPORTANT: Change in production!
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -32,7 +32,12 @@ class Settings(BaseSettings):
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     EMAIL_FROM: Optional[str] = None
-    
+    EMAIL_FROM_NAME: str = "Repensar"
+
+    # URLs
+    FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "http://localhost:8000"
+
     # Security
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 30
