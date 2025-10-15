@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Your Email - Repensar{% endblock %}
+
+{% block header_title %}Verify Your Email{% endblock %}
+{% block header_subtitle %}Welcome to Repensar!{% endblock %}
+
+{% block content %}
+<div style="text-align: left;">
+    <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+        Hi <strong style="color: #5ABEA4;">{{ name }}</strong>,
+    </p>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        Thank you for registering with Repensar! We're excited to have you join our community of volunteers making a positive impact.
+    </p>
+
+    <p style="margin: 0 0 30px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        To complete your registration and activate your account, please verify your email address by clicking the button below:
+    </p>
+
+    <!-- CTA Button -->
+    <div style="text-align: center; margin: 0 0 30px 0;">
+        <a href="{{ verification_url }}"
+           style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #5ABEA4 0%, #4AA896 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(90, 190, 164, 0.3);">
+            Verify Email Address
+        </a>
+    </div>
+
+    <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;">
+        Or copy and paste this link into your browser:
+    </p>
+
+    <div style="background-color: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px 16px; margin: 0 0 30px 0; word-break: break-all;">
+        <a href="{{ verification_url }}" style="color: #5ABEA4; text-decoration: none; font-size: 13px;">
+            {{ verification_url }}
+        </a>
+    </div>
+
+    <div style="background-color: #FFF9E6; border-left: 4px solid #FFC107; padding: 16px; margin: 0 0 20px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #856404; font-size: 13px; line-height: 1.6;">
+            <strong>⏰ Important:</strong> This verification link will expire in <strong>24 hours</strong> for security reasons.
+        </p>
+    </div>
+
+    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+        If you didn't create an account with Repensar, you can safely ignore this email.
+    </p>
+</div>
+{% endblock %}

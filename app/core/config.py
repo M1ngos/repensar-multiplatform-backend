@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # JWT Configuration
-    SECRET_KEY: str = "super-secret-missile-key-codes"  # IMPORTANT: Change in production!
+    SECRET_KEY: str = "St2vToKITZj7HxUvzfiegjf8LMfaCrwOuIIetLNIe8Y="  # IMPORTANT: Change in production!
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30

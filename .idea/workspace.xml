@@ -4,21 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="wip">
-      <change afterPath="$PROJECT_DIR$/alembic/README" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/env.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/script.py.mako" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DEPLOYMENT_CHECKLIST.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/DEPLOYMENT_CHECKLIST.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/JWT_TOKEN_MANAGEMENT_SUMMARY.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/JWT_TOKEN_MANAGEMENT_SUMMARY.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/QUICK_REFERENCE.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/QUICK_REFERENCE.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/V2_CONVERSION_SUMMARY.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/V2_CONVERSION_SUMMARY.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/alembic.ini" beforeDir="false" afterPath="$PROJECT_DIR$/alembic.ini" afterDir="false" />
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="feature: docs, smtp,...">
+      <change afterPath="$PROJECT_DIR$/app/core/email.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/templates/email/base.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/templates/email/password_reset.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/templates/email/verification.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/auth_enhanced.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/auth_enhanced.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -214,7 +205,15 @@
       <option name="project" value="LOCAL" />
       <updated>1759828879970</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feature: docs, smtp,...">
+      <option name="closed" value="true" />
+      <created>1760528868919</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1760528868919</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -231,6 +230,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="pre auto" />
     <MESSAGE value="wip" />
-    <option name="LAST_COMMIT_MESSAGE" value="wip" />
+    <MESSAGE value="feature: docs, smtp,..." />
+    <option name="LAST_COMMIT_MESSAGE" value="feature: docs, smtp,..." />
   </component>
 </project>
