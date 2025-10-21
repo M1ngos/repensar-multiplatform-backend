@@ -4,8 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="feature: cors">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: update to env">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -58,22 +57,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthLogin.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh.executor&quot;: &quot;Run&quot;,
-    &quot;Python.app.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/dev/PycharmProjects/repensar-multiplatform-backend&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.intellij.pycharm.community.ide.impl.configuration.PythonContentEntriesConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python tests.Python tests for tests.test_auth_routes.TestAuthLogin.executor": "Run",
+    "Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.executor": "Run",
+    "Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success.executor": "Run",
+    "Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh.executor": "Run",
+    "Python.app.executor": "Run",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "develop",
+    "last_opened_file_path": "/home/dev/PycharmProjects/repensar-multiplatform-backend/app/main.py",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "uv run.FastAPI Dev Server.executor": "Run",
+    "uv run.Unnamed.executor": "Run",
+    "uv run.server.executor": "Run"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -84,29 +87,7 @@
       <recent name="$PROJECT_DIR$/app" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh">
-    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="repensar-multiplatform-backend" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/app" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/app/main.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="uv run.FastAPI Dev Server">
     <configuration default="true" type="UvRunConfigurationType" factoryName="UvRunConfigurationType">
       <option name="args">
         <list />
@@ -183,13 +164,19 @@
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthLogin" />
+      <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration" />
+      <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success" />
+      <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh" />
+      <item itemvalue="uv run.FastAPI Dev Server" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh" />
         <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthLogin" />
         <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration" />
         <item itemvalue="Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success" />
-        <item itemvalue="Python.main" />
       </list>
     </recent_temporary>
   </component>
@@ -256,7 +243,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760543498872</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="chore: update to env">
+      <option name="closed" value="true" />
+      <created>1760554147361</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1760554147361</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -288,6 +283,7 @@
     <MESSAGE value="feature: docs, smtp,..." />
     <MESSAGE value="feature: google-signin" />
     <MESSAGE value="feature: cors" />
-    <option name="LAST_COMMIT_MESSAGE" value="feature: cors" />
+    <MESSAGE value="chore: update to env" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: update to env" />
   </component>
 </project>
