@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: update to env">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: updates to workspace config">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -251,7 +251,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760554147361</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="chore: updates to workspace config">
+      <option name="closed" value="true" />
+      <created>1761041003018</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1761041003018</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -284,6 +292,7 @@
     <MESSAGE value="feature: google-signin" />
     <MESSAGE value="feature: cors" />
     <MESSAGE value="chore: update to env" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: update to env" />
+    <MESSAGE value="chore: updates to workspace config" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: updates to workspace config" />
   </component>
 </project>
