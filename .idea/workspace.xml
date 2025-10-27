@@ -4,8 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: updates to workspace config">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: configs">
+      <change afterPath="$PROJECT_DIR$/alembic/versions/000_initial_schema.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/alembic/versions/003_add_sync_indexes.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/alembic/versions/004_create_sync_tables.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/templates/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/database-setup.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/env.py" beforeDir="false" afterPath="$PROJECT_DIR$/alembic/env.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/001_add_token_family_to_users.py" beforeDir="false" afterPath="$PROJECT_DIR$/alembic/versions/001_add_token_family_to_users.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,12 +45,12 @@
   <component name="GitRewordedCommitMessages">
     <option name="commitMessagesMapping">
       <RewordedCommitMessageMapping>
-        <option name="originalMessage" value="feature: docs, smtp,..." />
-        <option name="rewordedMessage" value="feature: docs, smtp,..." />
+        <option name="originalMessage" value="chore: configs" />
+        <option name="rewordedMessage" value="chore: configs" />
       </RewordedCommitMessageMapping>
     </option>
     <option name="currentCommit" value="1" />
-    <option name="onto" value="82cf632e6ccc0459678b79b6fea51c158b65abf0" />
+    <option name="onto" value="203d00adb9f7279884932309a162afca755c114d" />
   </component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
@@ -57,26 +66,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python tests.Python tests for tests.test_auth_routes.TestAuthLogin.executor": "Run",
-    "Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.executor": "Run",
-    "Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success.executor": "Run",
-    "Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh.executor": "Run",
-    "Python.app.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "develop",
-    "last_opened_file_path": "/home/dev/PycharmProjects/repensar-multiplatform-backend/app/main.py",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "uv run.FastAPI Dev Server.executor": "Run",
-    "uv run.Unnamed.executor": "Run",
-    "uv run.server.executor": "Run"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthLogin.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests for tests.test_auth_routes.TestAuthRegistration.test_register_success.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests for tests.test_auth_routes.TestTokenRefresh.executor&quot;: &quot;Run&quot;,
+    &quot;Python.app.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/dev/PycharmProjects/repensar-multiplatform-backend/app/main.py&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;uv run.FastAPI Dev Server.executor&quot;: &quot;Run&quot;,
+    &quot;uv run.Unnamed.executor&quot;: &quot;Run&quot;,
+    &quot;uv run.server.executor&quot;: &quot;Run&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -183,7 +192,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-164cda30dcd9-0af03a5fa574-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.26830.99" />
+        <option value="bundled-python-sdk-4e2b1448bda8-9a97661f3031-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.27397.106" />
       </set>
     </attachedChunks>
   </component>
@@ -259,7 +268,39 @@
       <option name="project" value="LOCAL" />
       <updated>1761041003018</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="chore: configs">
+      <option name="closed" value="true" />
+      <created>1761054327619</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1761054327619</updated>
+    </task>
+    <task id="LOCAL-00010" summary="chore: configs">
+      <option name="closed" value="true" />
+      <created>1761054330096</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1761054330096</updated>
+    </task>
+    <task id="LOCAL-00011" summary="chore: configs">
+      <option name="closed" value="true" />
+      <created>1761054398413</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1761054398413</updated>
+    </task>
+    <task id="LOCAL-00012" summary="chore: configs">
+      <option name="closed" value="true" />
+      <created>1761054440719</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1761054440719</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -293,6 +334,7 @@
     <MESSAGE value="feature: cors" />
     <MESSAGE value="chore: update to env" />
     <MESSAGE value="chore: updates to workspace config" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: updates to workspace config" />
+    <MESSAGE value="chore: configs" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: configs" />
   </component>
 </project>

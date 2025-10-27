@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync
 from app.models import user, volunteer, project, task, resource, analytics
 from app.core.config import settings
 
@@ -76,6 +76,7 @@ app.add_middleware(
 # Include routers - v2 (primary) registered first
 app.include_router(auth_enhanced.router)  # Primary: /auth/*
 app.include_router(auth.router)           # Legacy: /auth/v1/*
+app.include_router(sync.router)           # Sync: /sync/* (offline-first)
 app.include_router(volunteers.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
@@ -91,6 +92,7 @@ def read_root():
             "current": "/auth/* (v2 - production-grade JWT with token rotation)",
             "legacy": "/auth/v1/* (v1 - basic JWT, deprecated)"
         },
+        "sync": "/sync/* (offline-first sync for mobile and desktop)",
         "docs": "/docs",
         "redoc": "/redoc"
     }
