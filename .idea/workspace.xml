@@ -4,18 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="feat: sync mechanism">
-      <change afterPath="$PROJECT_DIR$/app/routers/analytics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/FastAPI_Dev_Server.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/FastAPI_Dev_Server.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/crud/resource.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/crud/resource.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/crud/task.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/crud/task.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/analytics.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/analytics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/projects.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/projects.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/reports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routers/volunteers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/volunteers.py" afterDir="false" />
-    </list>
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="feat: core modules refinement" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -342,7 +331,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761553237077</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="feat: core modules refinement">
+      <option name="closed" value="true" />
+      <created>1761568625891</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1761568625891</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -379,6 +376,7 @@
     <MESSAGE value="chore: configs" />
     <MESSAGE value="refactor: alembic versions" />
     <MESSAGE value="feat: sync mechanism" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: sync mechanism" />
+    <MESSAGE value="feat: core modules refinement" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: core modules refinement" />
   </component>
 </project>
