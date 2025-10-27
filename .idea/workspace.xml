@@ -4,17 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="chore: configs">
-      <change afterPath="$PROJECT_DIR$/alembic/versions/000_initial_schema.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/versions/003_add_sync_indexes.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/versions/004_create_sync_tables.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/templates/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/database-setup.md" afterDir="false" />
+    <list default="true" id="213c5bc0-2231-471b-80f7-3332e8e99abf" name="Changes" comment="feat: sync mechanism">
+      <change afterPath="$PROJECT_DIR$/app/routers/analytics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/FastAPI_Dev_Server.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/FastAPI_Dev_Server.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/alembic/env.py" beforeDir="false" afterPath="$PROJECT_DIR$/alembic/env.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/alembic/versions/001_add_token_family_to_users.py" beforeDir="false" afterPath="$PROJECT_DIR$/alembic/versions/001_add_token_family_to_users.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/crud/resource.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/crud/resource.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/crud/task.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/crud/task.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/analytics.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/analytics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routers/projects.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/projects.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routers/reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/reports.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routers/volunteers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routers/volunteers.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,6 +29,32 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <excluded-from-favorite>
+      <branch-storage>
+        <map>
+          <entry type="REMOTE">
+            <value>
+              <list>
+                <branch-info repo="$PROJECT_DIR$" source="origin/master" />
+              </list>
+            </value>
+          </entry>
+        </map>
+      </branch-storage>
+    </excluded-from-favorite>
+    <favorite-branches>
+      <branch-storage>
+        <map>
+          <entry type="REMOTE">
+            <value>
+              <list>
+                <branch-info repo="$PROJECT_DIR$" source="origin/develop" />
+              </list>
+            </value>
+          </entry>
+        </map>
+      </branch-storage>
+    </favorite-branches>
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
         <entry key="$PROJECT_DIR$" value="master" />
@@ -300,7 +326,23 @@
       <option name="project" value="LOCAL" />
       <updated>1761054440719</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="refactor: alembic versions">
+      <option name="closed" value="true" />
+      <created>1761553215162</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1761553215162</updated>
+    </task>
+    <task id="LOCAL-00014" summary="feat: sync mechanism">
+      <option name="closed" value="true" />
+      <created>1761553237077</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1761553237077</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -335,6 +377,8 @@
     <MESSAGE value="chore: update to env" />
     <MESSAGE value="chore: updates to workspace config" />
     <MESSAGE value="chore: configs" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: configs" />
+    <MESSAGE value="refactor: alembic versions" />
+    <MESSAGE value="feat: sync mechanism" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: sync mechanism" />
   </component>
 </project>

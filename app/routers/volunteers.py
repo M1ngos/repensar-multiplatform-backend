@@ -14,17 +14,18 @@ from app.crud.volunteer import (
 )
 from app.schemas.volunteer import (
     # Volunteer schemas
-    VolunteerRegistration, VolunteerCreate, VolunteerUpdate, 
+    VolunteerRegistration, VolunteerCreate, VolunteerUpdate,
     VolunteerProfile, Volunteer as VolunteerSchema, VolunteerSummary, VolunteerStats,
-    
+
     # Skill schemas
     VolunteerSkill, VolunteerSkillAssignmentCreate, VolunteerSkillAssignmentUpdate,
     VolunteerSkillAssignment,
-    
+
     # Time tracking schemas
     VolunteerTimeLogCreate, VolunteerTimeLogUpdate, VolunteerTimeLogApproval,
     VolunteerTimeLog
 )
+from app.schemas.common import PaginatedResponse, create_pagination_metadata
 
 router = APIRouter(
     prefix="/volunteers",
@@ -729,11 +730,318 @@ def get_volunteer_hours_summary(
         
         summary = volunteer_time_log_crud.get_volunteer_hours_summary(db, volunteer_id, year)
         return summary
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve hours summary: {str(e)}"
+        )
+
+# ========================================
+# VOLUNTEER RELATION ENDPOINTS
+# ========================================
+
+@router.get("/{volunteer_id}/projects")
+def get_volunteer_projects(
+    volunteer_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, regex="^(planning|in_progress|suspended|completed|cancelled)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all projects a volunteer is involved in."""
+    from app.schemas.project import ProjectSummary
+    from app.models.project import Project
+    from app.models.task import Task, TaskVolunteer
+    from sqlmodel import select, func, distinct
+
+    try:
+        # Check if volunteer exists
+        volunteer = volunteer_crud.get_volunteer(db, volunteer_id)
+        if not volunteer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Volunteer not found"
+            )
+
+        # Check permissions
+        if (current_user.user_type.name not in ["admin", "staff_member", "project_manager"] and
+            volunteer.user_id != current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view volunteer projects"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Get unique projects where volunteer has tasks
+        project_query = (
+            select(Project)
+            .join(Task, Task.project_id == Project.id)
+            .join(TaskVolunteer, TaskVolunteer.task_id == Task.id)
+            .where(TaskVolunteer.volunteer_id == volunteer_id)
+            .distinct()
+        )
+
+        if status:
+            project_query = project_query.where(Project.status == status)
+
+        project_query = project_query.offset(skip).limit(page_size)
+
+        projects = db.exec(project_query).all()
+
+        # Get total count
+        count_query = (
+            select(func.count(distinct(Project.id)))
+            .join(Task, Task.project_id == Project.id)
+            .join(TaskVolunteer, TaskVolunteer.task_id == Task.id)
+            .where(TaskVolunteer.volunteer_id == volunteer_id)
+        )
+
+        if status:
+            count_query = count_query.where(Project.status == status)
+
+        total = db.exec(count_query).one()
+
+        # Convert to summary format
+        project_summaries = []
+        for project in projects:
+            # Get project manager name
+            manager_name = None
+            if project.project_manager_id:
+                manager = db.get(User, project.project_manager_id)
+                if manager:
+                    manager_name = manager.name
+
+            # Count volunteer's tasks in this project
+            tasks_count_query = (
+                select(func.count(TaskVolunteer.task_id))
+                .join(Task, Task.id == TaskVolunteer.task_id)
+                .where(TaskVolunteer.volunteer_id == volunteer_id)
+                .where(Task.project_id == project.id)
+            )
+            tasks_count = db.exec(tasks_count_query).one() or 0
+
+            # Calculate progress
+            from app.crud.project import project_crud
+            project_data = project_crud.get_project_with_details(db, project.id)
+            progress = (project_data["completed_tasks"] / max(project_data["total_tasks"], 1)) * 100 if project_data else 0.0
+
+            project_summaries.append(ProjectSummary(
+                **project.model_dump(),
+                project_manager_name=manager_name,
+                team_size=len(project_data["team_members"]) if project_data else 0,
+                volunteers_count=tasks_count,
+                progress=progress
+            ))
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return PaginatedResponse[ProjectSummary](
+            data=project_summaries,
+            metadata=metadata
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve volunteer projects: {str(e)}"
+        )
+
+@router.get("/{volunteer_id}/tasks")
+def get_volunteer_tasks(
+    volunteer_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, regex="^(not_started|in_progress|completed|cancelled)$"),
+    project_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all tasks assigned to a volunteer."""
+    from app.schemas.task import TaskSummary
+    from app.models.task import Task, TaskVolunteer
+    from app.models.project import Project
+    from sqlmodel import select, func
+
+    try:
+        # Check if volunteer exists
+        volunteer = volunteer_crud.get_volunteer(db, volunteer_id)
+        if not volunteer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Volunteer not found"
+            )
+
+        # Check permissions
+        if (current_user.user_type.name not in ["admin", "staff_member", "project_manager"] and
+            volunteer.user_id != current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view volunteer tasks"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Build query
+        task_query = (
+            select(Task)
+            .join(TaskVolunteer, TaskVolunteer.task_id == Task.id)
+            .where(TaskVolunteer.volunteer_id == volunteer_id)
+        )
+
+        if status:
+            task_query = task_query.where(Task.status == status)
+
+        if project_id:
+            task_query = task_query.where(Task.project_id == project_id)
+
+        task_query = task_query.offset(skip).limit(page_size)
+
+        tasks = db.exec(task_query).all()
+
+        # Get total count
+        count_query = (
+            select(func.count(Task.id))
+            .join(TaskVolunteer, TaskVolunteer.task_id == Task.id)
+            .where(TaskVolunteer.volunteer_id == volunteer_id)
+        )
+
+        if status:
+            count_query = count_query.where(Task.status == status)
+
+        if project_id:
+            count_query = count_query.where(Task.project_id == project_id)
+
+        total = db.exec(count_query).one()
+
+        # Convert to summary format
+        task_summaries = []
+        for task in tasks:
+            # Get project name
+            project = db.get(Project, task.project_id)
+            project_name = project.name if project else "Unknown Project"
+
+            # Get assigned user name
+            assigned_to_name = None
+            if task.assigned_to_id:
+                assigned_user = db.get(User, task.assigned_to_id)
+                if assigned_user:
+                    assigned_to_name = assigned_user.name
+
+            # Count volunteers on this task
+            volunteers_count_query = select(func.count(TaskVolunteer.volunteer_id)).where(
+                TaskVolunteer.task_id == task.id
+            )
+            volunteers_count = db.exec(volunteers_count_query).one() or 0
+
+            task_summaries.append(TaskSummary(
+                **task.model_dump(),
+                project_name=project_name,
+                assigned_to_name=assigned_to_name,
+                volunteers_count=volunteers_count
+            ))
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return PaginatedResponse[TaskSummary](
+            data=task_summaries,
+            metadata=metadata
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve volunteer tasks: {str(e)}"
+        )
+
+@router.get("/{volunteer_id}/activity")
+def get_volunteer_activity(
+    volunteer_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    action_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get activity log for a specific volunteer."""
+    from app.models.analytics import ActivityLog
+    from sqlmodel import select, func, desc
+
+    try:
+        # Check if volunteer exists
+        volunteer = volunteer_crud.get_volunteer(db, volunteer_id)
+        if not volunteer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Volunteer not found"
+            )
+
+        # Check permissions
+        if (current_user.user_type.name not in ["admin", "staff_member", "project_manager"] and
+            volunteer.user_id != current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view volunteer activity"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Build query
+        query = select(ActivityLog).where(ActivityLog.volunteer_id == volunteer_id)
+
+        if action_filter:
+            query = query.where(ActivityLog.action.contains(action_filter))
+
+        query = query.order_by(desc(ActivityLog.created_at)).offset(skip).limit(page_size)
+
+        activities = db.exec(query).all()
+
+        # Get total count
+        count_query = select(func.count(ActivityLog.id)).where(ActivityLog.volunteer_id == volunteer_id)
+        if action_filter:
+            count_query = count_query.where(ActivityLog.action.contains(action_filter))
+
+        total = db.exec(count_query).one()
+
+        # Convert to response format
+        activity_data = []
+        for activity in activities:
+            user = db.get(User, activity.user_id) if activity.user_id else None
+            activity_data.append({
+                "id": activity.id,
+                "user_name": user.name if user else "System",
+                "action": activity.action,
+                "description": activity.description,
+                "created_at": activity.created_at.isoformat(),
+                "old_values": activity.old_values,
+                "new_values": activity.new_values
+            })
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return {
+            "data": activity_data,
+            "metadata": metadata.model_dump()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve volunteer activity: {str(e)}"
         )

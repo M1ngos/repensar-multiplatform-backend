@@ -86,7 +86,7 @@ class ProjectResourceCRUD:
             .where(ProjectResource.project_id == project_id)
         )
         results = db.exec(query).all()
-        
+
         resources = []
         for allocation, resource, user in results:
             resources.append({
@@ -94,8 +94,45 @@ class ProjectResourceCRUD:
                 "resource": resource,
                 "allocated_by": user
             })
-        
+
         return resources
+
+    def get_project_allocations(self, db: Session, project_id: int, skip: int = 0, limit: int = 100) -> List[Any]:
+        """Get paginated resource allocations for a project."""
+        from app.schemas.resource import ResourceAllocation
+
+        query = (
+            select(ProjectResource, Resource, User)
+            .join(Resource, ProjectResource.resource_id == Resource.id)
+            .outerjoin(User, ProjectResource.allocated_by_id == User.id)
+            .where(ProjectResource.project_id == project_id)
+            .offset(skip)
+            .limit(limit)
+        )
+        results = db.exec(query).all()
+
+        allocations = []
+        for allocation, resource, user in results:
+            allocations.append(ResourceAllocation(
+                id=allocation.id,
+                project_id=allocation.project_id,
+                resource_id=allocation.resource_id,
+                resource_name=resource.name,
+                resource_type=resource.resource_type,
+                quantity_allocated=allocation.quantity_allocated,
+                quantity_used=allocation.quantity_used,
+                allocation_date=allocation.allocation_date,
+                allocated_by_id=allocation.allocated_by_id,
+                allocated_by_name=user.name if user else None,
+                created_at=allocation.created_at
+            ))
+
+        return allocations
+
+    def count_project_allocations(self, db: Session, project_id: int) -> int:
+        """Count resource allocations for a project."""
+        query = select(func.count(ProjectResource.id)).where(ProjectResource.project_id == project_id)
+        return db.exec(query).one()
 
 # Create instances
 resource_crud = ResourceCRUD()

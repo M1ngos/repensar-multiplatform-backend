@@ -4,6 +4,8 @@
       <list>
         <option value="app.main:app" />
         <option value="--reload" />
+        <option value="--host" />
+        <option value="0.0.0.0" />
       </list>
     </option>
     <option name="checkSync" value="false" />

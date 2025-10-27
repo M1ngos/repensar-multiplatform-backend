@@ -12,18 +12,19 @@ from app.crud.project import (
 )
 from app.schemas.project import (
     # Project schemas
-    ProjectCreate, ProjectUpdate, Project, ProjectSummary, ProjectDetail, 
+    ProjectCreate, ProjectUpdate, Project, ProjectSummary, ProjectDetail,
     ProjectDashboard, ProjectStats,
-    
+
     # Team schemas
     ProjectTeamCreate, ProjectTeamUpdate, ProjectTeamMember,
-    
+
     # Milestone schemas
     MilestoneCreate, MilestoneUpdate, Milestone,
-    
+
     # Environmental metrics schemas
     EnvironmentalMetricCreate, EnvironmentalMetricUpdate, EnvironmentalMetric
 )
+from app.schemas.common import PaginatedResponse, create_pagination_metadata
 
 router = APIRouter(
     prefix="/projects",
@@ -203,9 +204,9 @@ def get_project(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        
+
         project = project_data["project"]
-        
+
         # Build detailed response
         detail = ProjectDetail(
             **project.model_dump(),
@@ -219,25 +220,25 @@ def get_project(
             progress_percentage=(project_data["completed_tasks"] / max(project_data["total_tasks"], 1)) * 100,
             volunteer_hours=project_data["volunteer_hours"]
         )
-        
+
         # Add team members
         for team_member, user, user_type in project_data["team_members"]:
             detail.team_members.append(ProjectTeamMember(
                 **team_member.model_dump(),
                 name=user.name,
                 email=user.email,
-                user_type=user_type
+                user_type=user_type.name if user_type else None
             ))
-        
+
         # Add environmental metrics
         for metric, recorder in project_data["environmental_metrics"]:
             detail.environmental_metrics.append(EnvironmentalMetric(
                 **metric.model_dump(),
                 recorded_by_name=recorder.name if recorder else None
             ))
-        
+
         return detail
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -334,12 +335,12 @@ def get_project_team(
             team_member = data["team_member"]
             user = data["user"]
             user_type = data["user_type"]
-            
+
             team_members.append(ProjectTeamMember(
                 **team_member.model_dump(),
                 name=user.name,
                 email=user.email,
-                user_type=user_type
+                user_type=user_type.name if user_type else None
             ))
         
         return team_members
@@ -756,11 +757,297 @@ def delete_environmental_metric(
             )
         
         return {"message": "Environmental metric deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete metric: {str(e)}"
+        )
+
+# ========================================
+# PROJECT RELATION ENDPOINTS
+# ========================================
+
+@router.get("/{project_id}/tasks")
+def get_project_tasks(
+    project_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, regex="^(not_started|in_progress|completed|cancelled)$"),
+    priority: Optional[str] = Query(None, regex="^(low|medium|high|critical)$"),
+    suitable_for_volunteers: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all tasks for a specific project with pagination."""
+    from app.schemas.task import TaskSummary
+    from app.crud.task import task_crud
+    from app.models.user import User as UserModel
+
+    try:
+        # Check if project exists
+        project = project_crud.get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Get tasks for this project
+        tasks = task_crud.get_tasks(
+            db, skip=skip, limit=page_size, project_id=project_id,
+            status=status, priority=priority,
+            suitable_for_volunteers=suitable_for_volunteers
+        )
+
+        # Get total count for pagination
+        total = task_crud.count_tasks(db, project_id=project_id, status=status,
+                                     priority=priority,
+                                     suitable_for_volunteers=suitable_for_volunteers)
+
+        # Convert to summary format
+        task_summaries = []
+        for task in tasks:
+            assigned_to_name = None
+            if task.assigned_to_id:
+                assigned_user = db.get(UserModel, task.assigned_to_id)
+                if assigned_user:
+                    assigned_to_name = assigned_user.name
+
+            volunteers_count = len(task.task_volunteers) if hasattr(task, 'task_volunteers') else 0
+
+            task_summaries.append(TaskSummary(
+                **task.model_dump(),
+                project_name=project.name,
+                assigned_to_name=assigned_to_name,
+                volunteers_count=volunteers_count
+            ))
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return PaginatedResponse[TaskSummary](
+            data=task_summaries,
+            metadata=metadata
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve project tasks: {str(e)}"
+        )
+
+@router.get("/{project_id}/volunteers")
+def get_project_volunteers(
+    project_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all volunteers assigned to a specific project."""
+    from app.schemas.volunteer import VolunteerSummary
+    from app.models.volunteer import Volunteer as VolunteerModel
+    from app.models.task import TaskVolunteer
+    from sqlmodel import select, func, col
+
+    try:
+        # Check if project exists
+        project = project_crud.get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Get unique volunteers assigned to tasks in this project
+        # First get volunteer IDs from task assignments
+        from app.models.task import Task
+        volunteer_query = (
+            select(VolunteerModel)
+            .join(TaskVolunteer, TaskVolunteer.volunteer_id == VolunteerModel.id)
+            .join(Task, Task.id == TaskVolunteer.task_id)
+            .where(Task.project_id == project_id)
+            .distinct()
+            .offset(skip)
+            .limit(page_size)
+        )
+
+        volunteers = db.exec(volunteer_query).all()
+
+        # Get total count
+        count_query = (
+            select(func.count(func.distinct(VolunteerModel.id)))
+            .join(TaskVolunteer, TaskVolunteer.volunteer_id == VolunteerModel.id)
+            .join(Task, Task.id == TaskVolunteer.task_id)
+            .where(Task.project_id == project_id)
+        )
+        total = db.exec(count_query).one()
+
+        # Convert to summary format
+        volunteer_summaries = []
+        for volunteer in volunteers:
+            user = db.get(User, volunteer.user_id)
+
+            # Count tasks for this volunteer in this project
+            tasks_count_query = (
+                select(func.count(TaskVolunteer.task_id))
+                .join(Task, Task.id == TaskVolunteer.task_id)
+                .where(TaskVolunteer.volunteer_id == volunteer.id)
+                .where(Task.project_id == project_id)
+            )
+            tasks_count = db.exec(tasks_count_query).one() or 0
+
+            volunteer_summaries.append(VolunteerSummary(
+                **volunteer.model_dump(),
+                name=user.name if user else "Unknown",
+                email=user.email if user else "unknown@example.com",
+                active_projects_count=tasks_count,
+                total_hours_contributed=volunteer.total_hours_contributed or 0.0
+            ))
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return PaginatedResponse[VolunteerSummary](
+            data=volunteer_summaries,
+            metadata=metadata
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve project volunteers: {str(e)}"
+        )
+
+@router.get("/{project_id}/resources")
+def get_project_resources(
+    project_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all resources allocated to a specific project."""
+    from app.schemas.resource import ResourceAllocation
+    from app.crud.resource import project_resource_crud
+
+    try:
+        # Check if project exists
+        project = project_crud.get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Get resource allocations for this project
+        allocations = project_resource_crud.get_project_allocations(
+            db, project_id, skip=skip, limit=page_size
+        )
+
+        # Get total count
+        total = project_resource_crud.count_project_allocations(db, project_id)
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return PaginatedResponse[ResourceAllocation](
+            data=allocations,
+            metadata=metadata
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve project resources: {str(e)}"
+        )
+
+@router.get("/{project_id}/activity")
+def get_project_activity(
+    project_id: int,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    action_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get activity log for a specific project."""
+    from app.models.analytics import ActivityLog
+    from sqlmodel import select, func, desc
+
+    try:
+        # Check if project exists
+        project = project_crud.get_project(db, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+
+        # Calculate skip offset
+        skip = (page - 1) * page_size
+
+        # Build query
+        query = select(ActivityLog).where(ActivityLog.project_id == project_id)
+
+        if action_filter:
+            query = query.where(ActivityLog.action.contains(action_filter))
+
+        query = query.order_by(desc(ActivityLog.created_at)).offset(skip).limit(page_size)
+
+        activities = db.exec(query).all()
+
+        # Get total count
+        count_query = select(func.count(ActivityLog.id)).where(ActivityLog.project_id == project_id)
+        if action_filter:
+            count_query = count_query.where(ActivityLog.action.contains(action_filter))
+
+        total = db.exec(count_query).one()
+
+        # Convert to response format
+        activity_data = []
+        for activity in activities:
+            user = db.get(User, activity.user_id) if activity.user_id else None
+            activity_data.append({
+                "id": activity.id,
+                "user_name": user.name if user else "System",
+                "action": activity.action,
+                "description": activity.description,
+                "created_at": activity.created_at.isoformat(),
+                "old_values": activity.old_values,
+                "new_values": activity.new_values
+            })
+
+        # Create pagination metadata
+        metadata = create_pagination_metadata(total, page, page_size)
+
+        return {
+            "data": activity_data,
+            "metadata": metadata.model_dump()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve project activity: {str(e)}"
         )

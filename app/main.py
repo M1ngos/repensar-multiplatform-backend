@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync
-from app.models import user, volunteer, project, task, resource, analytics
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users
+from app.models import user, volunteer, project, task, resource
+from app.models import analytics as analytics_models
 from app.core.config import settings
 
 # Configure logging
@@ -67,6 +68,7 @@ app.add_middleware(
         "http://localhost:3001",  # Alternative React port
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "http://192.168.1.81:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
@@ -77,11 +79,13 @@ app.add_middleware(
 app.include_router(auth_enhanced.router)  # Primary: /auth/*
 app.include_router(auth.router)           # Legacy: /auth/v1/*
 app.include_router(sync.router)           # Sync: /sync/* (offline-first)
+app.include_router(users.router)          # Users: /users/* (user management)
 app.include_router(volunteers.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
 app.include_router(resources.router)
 app.include_router(reports.router)
+app.include_router(analytics.router)      # Analytics: /analytics/* (time-series & dashboards)
 
 @app.get("/")
 def read_root():
@@ -92,7 +96,16 @@ def read_root():
             "current": "/auth/* (v2 - production-grade JWT with token rotation)",
             "legacy": "/auth/v1/* (v1 - basic JWT, deprecated)"
         },
-        "sync": "/sync/* (offline-first sync for mobile and desktop)",
+        "modules": {
+            "users": "/users/* (user management and search)",
+            "projects": "/projects/* (project management with relations)",
+            "tasks": "/tasks/* (task tracking and assignments)",
+            "volunteers": "/volunteers/* (volunteer profiles and management)",
+            "resources": "/resources/* (resource allocation)",
+            "analytics": "/analytics/* (time-series metrics and dashboards)",
+            "reports": "/reports/* (reports and data exports)",
+            "sync": "/sync/* (offline-first sync for mobile/desktop)"
+        },
         "docs": "/docs",
         "redoc": "/redoc"
     }

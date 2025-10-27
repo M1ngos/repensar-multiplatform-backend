@@ -60,7 +60,40 @@ class TaskCRUD:
         
         query = query.offset(skip).limit(limit).order_by(Task.created_at.desc())
         return db.exec(query).all()
-    
+
+    def count_tasks(
+        self,
+        db: Session,
+        project_id: Optional[int] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        assigned_to_id: Optional[int] = None,
+        suitable_for_volunteers: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
+        """Count tasks with filtering options (for pagination)."""
+        query = select(func.count(Task.id))
+
+        if project_id:
+            query = query.where(Task.project_id == project_id)
+        if status:
+            query = query.where(Task.status == status)
+        if priority:
+            query = query.where(Task.priority == priority)
+        if assigned_to_id:
+            query = query.where(Task.assigned_to_id == assigned_to_id)
+        if suitable_for_volunteers is not None:
+            query = query.where(Task.suitable_for_volunteers == suitable_for_volunteers)
+        if search:
+            query = query.where(
+                or_(
+                    Task.title.ilike(f"%{search}%"),
+                    Task.description.ilike(f"%{search}%")
+                )
+            )
+
+        return db.exec(query).one()
+
     def update_task(self, db: Session, task_id: int, task_data: TaskUpdate) -> Optional[Task]:
         """Update task."""
         task = db.get(Task, task_id)
