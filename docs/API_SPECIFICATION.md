@@ -1106,12 +1106,189 @@ All endpoints require JWT authentication unless specified otherwise.
 
 **Endpoint:** `GET /resources`
 **Authentication:** Bearer Token
+**Description:** Get paginated list of resources with filtering.
 
-**Response:** `200 OK` (List of resources)
+**Query Parameters:**
+- `page` (integer, default: 1, min: 1) - Page number (1-indexed)
+- `page_size` (integer, default: 20, min: 1, max: 100) - Items per page
+- `resource_type` (string, optional) - Filter by resource type
+- `search` (string, optional) - Search by name or description
+- `location` (string, optional) - Filter by location
+
+**Response:** `200 OK`
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Safety Equipment Kit",
+      "resource_type": "equipment",
+      "available_quantity": 15,
+      "unit": "kits",
+      "unit_cost": 50.00,
+      "location": "Main Warehouse",
+      "allocated_quantity": 5,
+      "is_available": true
+    },
+    {
+      "id": 2,
+      "name": "Tree Seedlings",
+      "resource_type": "material",
+      "available_quantity": 5000,
+      "unit": "seedlings",
+      "unit_cost": 2.50,
+      "location": "Greenhouse A",
+      "allocated_quantity": 1200,
+      "is_available": true
+    }
+  ],
+  "metadata": {
+    "total": 48,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3,
+    "has_next": true,
+    "has_previous": false
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `500` - Server error
 
 ---
 
-### 6.3 Allocate Resource to Project
+### 6.3 Get Resource Details
+
+**Endpoint:** `GET /resources/{resource_id}`
+**Authentication:** Bearer Token
+**Description:** Get detailed information about a specific resource.
+
+**Path Parameters:**
+- `resource_id` (integer, required) - Resource ID
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Safety Equipment Kit",
+  "description": "Complete safety kit including helmets, gloves, and vests",
+  "resource_type": "equipment",
+  "unit": "kits",
+  "unit_cost": 50.00,
+  "available_quantity": 15,
+  "total_quantity": 20,
+  "allocated_quantity": 5,
+  "location": "Main Warehouse",
+  "supplier": "SafetyPro Ltd.",
+  "purchase_date": "2025-01-10",
+  "expiry_date": null,
+  "maintenance_schedule": "quarterly",
+  "last_maintenance_date": "2025-01-15",
+  "is_available": true,
+  "created_at": "2025-01-10T08:00:00Z",
+  "updated_at": "2025-03-15T10:30:00Z",
+  "allocations": [
+    {
+      "id": 1,
+      "project_id": 1,
+      "project_name": "Rainforest Reforestation 2025",
+      "quantity_allocated": 3,
+      "allocation_date": "2025-02-01",
+      "return_date": null,
+      "status": "in_use"
+    },
+    {
+      "id": 2,
+      "project_id": 2,
+      "project_name": "Beach Cleanup Initiative",
+      "quantity_allocated": 2,
+      "allocation_date": "2025-03-01",
+      "return_date": null,
+      "status": "in_use"
+    }
+  ],
+  "metadata": {
+    "total_cost": 1000.00,
+    "utilization_rate": 25.0,
+    "notes": "Regular inspection required before each use"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `404` - Resource not found
+- `500` - Server error
+
+---
+
+### 6.4 Update Resource
+
+**Endpoint:** `PUT /resources/{resource_id}`
+**Authentication:** Bearer Token (admin, project_manager, staff_member)
+**Description:** Update resource information.
+
+**Path Parameters:**
+- `resource_id` (integer, required) - Resource ID
+
+**Request Body:** (all fields optional)
+```json
+{
+  "name": "string (max 150)",
+  "description": "string",
+  "unit": "string (max 20)",
+  "unit_cost": "number (min 0)",
+  "available_quantity": "number (min 0)",
+  "total_quantity": "number (min 0)",
+  "location": "string (max 100)",
+  "supplier": "string (max 100)",
+  "maintenance_schedule": "string",
+  "last_maintenance_date": "date (YYYY-MM-DD)",
+  "expiry_date": "date (YYYY-MM-DD)",
+  "is_available": "boolean",
+  "metadata": "object"
+}
+```
+
+**Response:** `200 OK` (returns updated ResourceDetail schema)
+
+**Status Codes:**
+- `200` - Resource updated successfully
+- `400` - Validation error (e.g., available_quantity > total_quantity)
+- `403` - Not authorized to update resources
+- `404` - Resource not found
+- `500` - Server error
+
+---
+
+### 6.5 Delete Resource
+
+**Endpoint:** `DELETE /resources/{resource_id}`
+**Authentication:** Bearer Token (admin only)
+**Description:** Delete a resource. Cannot delete if resource is currently allocated to active projects.
+
+**Path Parameters:**
+- `resource_id` (integer, required) - Resource ID
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Resource deleted successfully"
+}
+```
+
+**Status Codes:**
+- `200` - Resource deleted successfully
+- `400` - Cannot delete resource (currently allocated to projects)
+- `403` - Not authorized (requires admin role)
+- `404` - Resource not found
+- `500` - Server error
+
+---
+
+### 6.6 Allocate Resource to Project
 
 **Endpoint:** `POST /resources/{resource_id}/allocate`
 **Authentication:** Bearer Token (admin, project_manager)
