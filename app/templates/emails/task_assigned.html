@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Assigned - Repensar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .task-card {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>New Task Assigned!</h1>
+    </div>
+    <div class="content">
+        <p>Hi {{ volunteer_name }},</p>
+
+        <p>You have been assigned to a new task:</p>
+
+        <div class="task-card">
+            <h2>{{ task_title }}</h2>
+            <p><strong>Project:</strong> {{ project_name }}</p>
+            <p><strong>Due Date:</strong> {{ due_date }}</p>
+            {% if task_description %}
+            <p><strong>Description:</strong> {{ task_description }}</p>
+            {% endif %}
+        </div>
+
+        <a href="{{ task_url }}" class="button">View Task Details</a>
+
+        <p>Thank you for your contribution!</p>
+
+        <p>Best regards,<br>The Repensar Team</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated email. Please do not reply.</p>
+        <p>&copy; 2025 Repensar. All rights reserved.</p>
+    </div>
+</body>
+</html>

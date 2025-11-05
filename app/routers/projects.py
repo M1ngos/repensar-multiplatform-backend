@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.models.analytics import NotificationType
 from app.crud.project import (
     project_crud, project_team_crud, milestone_crud, environmental_metric_crud
 )
@@ -25,6 +26,9 @@ from app.schemas.project import (
     EnvironmentalMetricCreate, EnvironmentalMetricUpdate, EnvironmentalMetric
 )
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
+from app.services.notification_service import NotificationService
+from app.services.analytics_service import track_project_progress
+from app.services.event_bus import EventType, get_event_bus
 
 router = APIRouter(
     prefix="/projects",
@@ -248,7 +252,7 @@ def get_project(
         )
 
 @router.put("/{project_id}", response_model=Project)
-def update_project(
+async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
     db: Session = Depends(get_db),
@@ -263,19 +267,71 @@ def update_project(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        
+
         # Check permissions
-        if (current_user.user_type.name not in ["admin"] and 
+        if (current_user.user_type.name not in ["admin"] and
             project.project_manager_id != current_user.id and
             project.created_by_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this project"
             )
-        
+
+        # Track old status
+        old_status = project.status
+
         updated_project = project_crud.update_project(db, project_id, project_data)
+
+        # Notify team members about significant updates
+        if project_data.status and project_data.status != old_status:
+            # Get all team members
+            team_members = project_team_crud.get_project_team(db, project_id)
+            users_to_notify = set()
+
+            for member in team_members:
+                users_to_notify.add(member.user_id)
+
+            # Remove current user from notifications
+            users_to_notify.discard(current_user.id)
+
+            # Send notifications
+            for user_id in users_to_notify:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=user_id,
+                    title="Project Status Updated",
+                    message=f'Project "{updated_project.name}" status changed from {old_status} to {updated_project.status}',
+                    notification_type=NotificationType.info,
+                    related_project_id=project_id
+                )
+
+            # Publish event
+            try:
+                event_bus = get_event_bus()
+                await event_bus.publish(
+                    EventType.PROJECT_STATUS_CHANGED,
+                    {
+                        "project_id": project_id,
+                        "project_name": updated_project.name,
+                        "old_status": old_status,
+                        "new_status": updated_project.status,
+                        "changed_by": current_user.id
+                    }
+                )
+            except Exception as e:
+                pass
+
+        # Track progress metrics if changed
+        if project_data.progress_percentage is not None:
+            try:
+                await track_project_progress(
+                    db, project_id, project_data.progress_percentage, current_user.id
+                )
+            except Exception as e:
+                pass
+
         return Project(**updated_project.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -352,7 +408,7 @@ def get_project_team(
         )
 
 @router.post("/{project_id}/team", response_model=ProjectTeamMember)
-def add_team_member(
+async def add_team_member(
     project_id: int,
     team_data: ProjectTeamCreate,
     db: Session = Depends(get_db),
@@ -367,34 +423,61 @@ def add_team_member(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        
+
         # Check permissions
-        if (current_user.user_type.name not in ["admin"] and 
+        if (current_user.user_type.name not in ["admin"] and
             project.project_manager_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to manage project team"
             )
-        
+
         team_member = project_team_crud.add_team_member(db, project_id, team_data)
         if not team_member:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is already a team member"
             )
-        
+
         # Get user info for response
         from app.models.user import User, UserType
         user = db.get(User, team_member.user_id)
         user_type = db.get(UserType, user.user_type_id)
-        
+
+        # Notify the new team member
+        await NotificationService.create_notification(
+            db=db,
+            user_id=team_member.user_id,
+            title="Added to Project Team",
+            message=f'You have been added to project: "{project.name}"',
+            notification_type=NotificationType.info,
+            related_project_id=project_id
+        )
+
+        # Publish event
+        try:
+            event_bus = get_event_bus()
+            await event_bus.publish(
+                EventType.TEAM_MEMBER_ADDED,
+                {
+                    "project_id": project_id,
+                    "project_name": project.name,
+                    "user_id": team_member.user_id,
+                    "role": team_data.role,
+                    "added_by": current_user.id
+                },
+                user_id=team_member.user_id
+            )
+        except Exception as e:
+            pass
+
         return ProjectTeamMember(
             **team_member.model_dump(),
             name=user.name,
             email=user.email,
             user_type=user_type.name if user_type else None
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -553,7 +636,7 @@ def create_milestone(
         )
 
 @router.put("/milestones/{milestone_id}", response_model=Milestone)
-def update_milestone(
+async def update_milestone(
     milestone_id: int,
     milestone_data: MilestoneUpdate,
     db: Session = Depends(get_db),
@@ -567,19 +650,62 @@ def update_milestone(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Milestone not found"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, milestone.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager"] and 
+        if (current_user.user_type.name not in ["admin", "project_manager"] and
             project.project_manager_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update milestones"
             )
-        
+
+        # Track old completion status
+        was_completed = milestone.is_completed
+
         updated_milestone = milestone_crud.update_milestone(db, milestone_id, milestone_data)
+
+        # Notify team if milestone was just completed
+        if milestone_data.is_completed and not was_completed:
+            # Get all team members
+            team_members = project_team_crud.get_project_team(db, milestone.project_id)
+            users_to_notify = set()
+
+            for member in team_members:
+                users_to_notify.add(member.user_id)
+
+            # Remove current user from notifications
+            users_to_notify.discard(current_user.id)
+
+            # Send notifications
+            for user_id in users_to_notify:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=user_id,
+                    title="Milestone Completed",
+                    message=f'Milestone "{updated_milestone.name}" in project "{project.name}" has been completed!',
+                    notification_type=NotificationType.success,
+                    related_project_id=milestone.project_id
+                )
+
+            # Publish event
+            try:
+                event_bus = get_event_bus()
+                await event_bus.publish(
+                    EventType.MILESTONE_COMPLETED,
+                    {
+                        "milestone_id": milestone_id,
+                        "milestone_name": updated_milestone.name,
+                        "project_id": milestone.project_id,
+                        "project_name": project.name,
+                        "completed_by": current_user.id
+                    }
+                )
+            except Exception as e:
+                pass
+
         return Milestone(**updated_milestone.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:

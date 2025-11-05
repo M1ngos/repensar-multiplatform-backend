@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Type
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
+from app.models.analytics import NotificationType
 from app.models.sync import Device, DeviceSyncState, SyncConflict, DeviceType, DevicePlatform, ConflictResolution
 from app.models.volunteer import Volunteer, VolunteerSkill, VolunteerSkillAssignment, VolunteerTimeLog, VolunteerTraining, VolunteerTrainingRecord
 from app.models.project import Project, ProjectTeam, Milestone, EnvironmentalMetric
@@ -32,6 +33,8 @@ from app.schemas.sync import (
     EntitySyncState,
     ConflictListResponse
 )
+from app.services.notification_service import NotificationService, notify_sync_conflict
+from app.services.event_bus import EventType, get_event_bus
 
 router = APIRouter(prefix="/sync", tags=["Sync & Offline"])
 
@@ -734,6 +737,33 @@ async def resolve_conflict(
     conflict.resolved_at = datetime.now(timezone.utc)
 
     db.commit()
+
+    # Notify user that conflict was resolved
+    await NotificationService.create_notification(
+        db=db,
+        user_id=current_user.id,
+        title="Sync Conflict Resolved",
+        message=f"Conflict in {conflict.entity_type} (ID: {conflict.entity_id}) has been resolved using {resolution_request.resolution.value} strategy.",
+        notification_type=NotificationType.success
+    )
+
+    # Publish event
+    try:
+        event_bus = get_event_bus()
+        await event_bus.publish(
+            EventType.SYNC_CONFLICT_RESOLVED,
+            {
+                "conflict_id": conflict_id,
+                "entity_type": conflict.entity_type,
+                "entity_id": conflict.entity_id,
+                "resolution": resolution_request.resolution.value,
+                "device_id": conflict.device_id,
+                "resolved_by": current_user.id
+            },
+            user_id=current_user.id
+        )
+    except Exception as e:
+        pass
 
     return {
         "message": "Conflict resolved successfully",

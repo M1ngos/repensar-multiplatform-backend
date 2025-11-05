@@ -7,19 +7,23 @@ from typing import List, Optional, Dict
 from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.models.analytics import NotificationType
 from app.crud.task import task_crud, task_volunteer_crud, task_dependency_crud
 from app.crud.project import project_crud
 from app.schemas.task import (
     # Task schemas
     TaskCreate, TaskUpdate, Task, TaskSummary, TaskDetail, TaskProgress, TaskStats,
-    
+
     # Volunteer assignment schemas
     TaskVolunteerCreate, TaskVolunteerUpdate, TaskVolunteerAssignment,
     VolunteerTaskAssignment, TaskVolunteerMatch,
-    
+
     # Dependency schemas
     TaskDependencyCreate, TaskDependency
 )
+from app.services.notification_service import NotificationService
+from app.services.analytics_service import AnalyticsService, log_task_assignment
+from app.services.event_bus import EventType, get_event_bus
 
 router = APIRouter(
     prefix="/tasks",
@@ -293,7 +297,7 @@ def get_task(
         )
 
 @router.put("/{task_id}", response_model=Task)
-def update_task(
+async def update_task(
     task_id: int,
     task_data: TaskUpdate,
     db: Session = Depends(get_db),
@@ -308,10 +312,10 @@ def update_task(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin"] and 
+        if (current_user.user_type.name not in ["admin"] and
             project.project_manager_id != current_user.id and
             task.assigned_to_id != current_user.id and
             task.created_by_id != current_user.id):
@@ -319,10 +323,81 @@ def update_task(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this task"
             )
-        
+
+        # Track old status for notification
+        old_status = task.status
+        old_title = task.title
+
         updated_task = task_crud.update_task(db, task_id, task_data)
+
+        # Send notifications if status changed
+        if task_data.status and task_data.status != old_status:
+            # Get all volunteers assigned to this task
+            volunteer_assignments = task_volunteer_crud.get_task_volunteers(db, task_id)
+
+            # Notify assigned volunteers and task owner
+            from app.models.volunteer import Volunteer
+            users_to_notify = set()
+
+            # Add task assignee if exists
+            if updated_task.assigned_to_id:
+                users_to_notify.add(updated_task.assigned_to_id)
+
+            # Add volunteers
+            for assignment in volunteer_assignments:
+                volunteer = db.get(Volunteer, assignment.volunteer_id)
+                if volunteer:
+                    users_to_notify.add(volunteer.user_id)
+
+            # Add project manager
+            if project.project_manager_id:
+                users_to_notify.add(project.project_manager_id)
+
+            # Remove current user from notifications (they made the change)
+            users_to_notify.discard(current_user.id)
+
+            # Send notifications
+            for user_id in users_to_notify:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=user_id,
+                    title="Task Status Updated",
+                    message=f'Task "{updated_task.title}" status changed from {old_status} to {updated_task.status}',
+                    notification_type=NotificationType.info,
+                    related_task_id=task_id,
+                    related_project_id=updated_task.project_id
+                )
+
+            # Publish event
+            try:
+                event_bus = get_event_bus()
+                await event_bus.publish(
+                    EventType.TASK_STATUS_CHANGED,
+                    {
+                        "task_id": task_id,
+                        "task_title": updated_task.title,
+                        "old_status": old_status,
+                        "new_status": updated_task.status,
+                        "project_id": updated_task.project_id,
+                        "changed_by": current_user.id
+                    }
+                )
+
+                # Track completion metric
+                if updated_task.status == "completed":
+                    from app.services.analytics_service import track_task_completion
+                    await track_task_completion(db, task_id, updated_task.project_id)
+                    await event_bus.publish(EventType.TASK_COMPLETED, {
+                        "task_id": task_id,
+                        "task_title": updated_task.title,
+                        "project_id": updated_task.project_id
+                    })
+            except Exception as e:
+                # Don't fail the request if event publishing fails
+                pass
+
         return Task(**updated_task.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -410,7 +485,7 @@ def get_task_volunteers(
         )
 
 @router.post("/{task_id}/volunteers", response_model=TaskVolunteerAssignment)
-def assign_volunteer_to_task(
+async def assign_volunteer_to_task(
     task_id: int,
     volunteer_data: TaskVolunteerCreate,
     db: Session = Depends(get_db),
@@ -425,42 +500,81 @@ def assign_volunteer_to_task(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
-        
+
         if not task.suitable_for_volunteers:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Task is not suitable for volunteers"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and 
+        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and
             project.project_manager_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to assign volunteers to this task"
             )
-        
+
         assignment = task_volunteer_crud.assign_volunteer(db, task_id, volunteer_data.volunteer_id)
         if not assignment:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Volunteer already assigned or no available spots"
             )
-        
+
         # Get volunteer info for response
         from app.models.volunteer import Volunteer
         from app.models.user import User
         volunteer = db.get(Volunteer, assignment.volunteer_id)
         user = db.get(User, volunteer.user_id)
-        
+
+        # Send notification to volunteer about task assignment
+        await NotificationService.create_notification(
+            db=db,
+            user_id=user.id,
+            title="New Task Assignment",
+            message=f'You have been assigned to task: "{task.title}"',
+            notification_type=NotificationType.info,
+            related_task_id=task_id,
+            related_project_id=task.project_id
+        )
+
+        # Log activity
+        await log_task_assignment(
+            db=db,
+            task_id=task_id,
+            volunteer_id=volunteer.id,
+            assigned_by_id=current_user.id,
+            project_id=task.project_id
+        )
+
+        # Publish event
+        try:
+            event_bus = get_event_bus()
+            await event_bus.publish(
+                EventType.TASK_ASSIGNED,
+                {
+                    "task_id": task_id,
+                    "task_title": task.title,
+                    "volunteer_id": volunteer.id,
+                    "user_id": user.id,
+                    "project_id": task.project_id,
+                    "assigned_by": current_user.id
+                },
+                user_id=user.id
+            )
+        except Exception as e:
+            # Don't fail the request if event publishing fails
+            pass
+
         return TaskVolunteerAssignment(
             **assignment.model_dump(),
             volunteer_name=user.name,
             volunteer_id_code=volunteer.volunteer_id,
             volunteer_email=user.email
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

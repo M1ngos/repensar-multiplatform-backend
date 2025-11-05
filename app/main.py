@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
 from app.core.config import settings
@@ -19,14 +19,17 @@ async def lifespan(app: FastAPI):
     logger.info("Creating database tables...")
     create_db_and_tables()
 
-    # Initialize Redis if available
+    # Initialize Redis and real-time services
+    redis_async_client = None
     try:
         if hasattr(settings, 'REDIS_URL') and settings.REDIS_URL:
             logger.info(f"Initializing Redis connection: {settings.REDIS_URL}")
             from redis import Redis
+            import redis.asyncio as redis_async
             from app.core.token_manager import initialize_redis_blacklist
             from app.core.rate_limiter import initialize_redis_rate_limiter
 
+            # Sync Redis client for token blacklist and rate limiter
             redis_client = Redis.from_url(
                 settings.REDIS_URL,
                 decode_responses=False,
@@ -39,18 +42,93 @@ async def lifespan(app: FastAPI):
             # Initialize Redis-backed services
             initialize_redis_blacklist(redis_client)
             initialize_redis_rate_limiter(redis_client)
-            logger.info("✓ Redis initialized successfully")
+            logger.info("✓ Redis (sync) initialized successfully")
+
+            # Async Redis client for EventBus and real-time features
+            redis_async_client = redis_async.from_url(
+                settings.REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=5
+            )
+            await redis_async_client.ping()
+            logger.info("✓ Redis (async) initialized successfully")
         else:
             logger.info("Redis not configured, using in-memory storage (development mode)")
     except Exception as e:
         logger.warning(f"Failed to initialize Redis: {e}")
         logger.warning("Falling back to in-memory storage")
 
+    # Initialize EventBus
+    from app.services.event_bus import EventBus
+    import app.services.event_bus as event_bus_module
+    event_bus_module.event_bus = EventBus(redis_async_client)
+    await event_bus_module.event_bus.initialize()
+    await event_bus_module.event_bus.start_listener()
+    logger.info("✓ EventBus initialized")
+
+    # Initialize SSEManager
+    from app.core.sse_manager import SSEManager
+    import app.core.sse_manager as sse_manager_module
+    sse_manager_module.sse_manager = SSEManager()
+    await sse_manager_module.sse_manager.start_heartbeat()
+    logger.info("✓ SSEManager initialized")
+
+    # Subscribe to notification events for SSE broadcasting
+    from app.services.event_bus import EventType
+    event_bus = event_bus_module.event_bus
+
+    async def broadcast_notification_to_sse(event_payload):
+        """Broadcast notification events to SSE clients."""
+        try:
+            sse_manager = sse_manager_module.sse_manager
+            user_id = event_payload.get("user_id")
+            if user_id:
+                await sse_manager.broadcast_to_user(
+                    user_id,
+                    "notification",
+                    event_payload.get("data", {})
+                )
+        except Exception as e:
+            logger.error(f"Error broadcasting notification to SSE: {e}")
+
+    event_bus.subscribe(EventType.NOTIFICATION_CREATED, broadcast_notification_to_sse)
+    logger.info("✓ SSE notification broadcasting enabled")
+
+    # Initialize and start background tasks
+    from app.core.background_tasks import BackgroundTaskManager
+    import app.core.background_tasks as background_tasks_module
+    background_tasks_module.background_task_manager = BackgroundTaskManager()
+    await background_tasks_module.background_task_manager.start()
+    logger.info("✓ Background tasks started")
+
     logger.info("Application startup complete")
 
     yield
 
-    logger.info("Application shutdown")
+    # Cleanup on shutdown
+    logger.info("Application shutdown initiated...")
+
+    # Stop background tasks
+    if background_tasks_module.background_task_manager:
+        await background_tasks_module.background_task_manager.stop()
+        logger.info("✓ Background tasks stopped")
+
+    # Stop EventBus listener
+    if event_bus_module.event_bus:
+        await event_bus_module.event_bus.stop_listener()
+        logger.info("✓ EventBus stopped")
+
+    # Stop SSE heartbeat
+    if sse_manager_module.sse_manager:
+        await sse_manager_module.sse_manager.stop_heartbeat()
+        logger.info("✓ SSEManager stopped")
+
+    # Close async Redis connection
+    if redis_async_client:
+        await redis_async_client.close()
+        logger.info("✓ Redis (async) connection closed")
+
+    logger.info("Application shutdown complete")
 
 app = FastAPI(
     title="Repensar Multiplatform Backend",
@@ -80,6 +158,9 @@ app.include_router(auth_enhanced.router)  # Primary: /auth/*
 app.include_router(auth.router)           # Legacy: /auth/v1/*
 app.include_router(sync.router)           # Sync: /sync/* (offline-first)
 app.include_router(users.router)          # Users: /users/* (user management)
+app.include_router(notifications.router)  # Notifications: /notifications/* (real-time SSE)
+app.include_router(files.router)          # Files: /files/* (file upload & management)
+app.include_router(search.router)         # Search: /search/* (full-text search)
 app.include_router(volunteers.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
@@ -98,6 +179,7 @@ def read_root():
         },
         "modules": {
             "users": "/users/* (user management and search)",
+            "notifications": "/notifications/* (real-time notifications via SSE)",
             "projects": "/projects/* (project management with relations)",
             "tasks": "/tasks/* (task tracking and assignments)",
             "volunteers": "/volunteers/* (volunteer profiles and management)",

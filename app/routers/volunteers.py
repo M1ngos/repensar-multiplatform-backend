@@ -9,6 +9,7 @@ from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.volunteer import Volunteer
+from app.models.analytics import NotificationType
 from app.crud.volunteer import (
     volunteer_crud, volunteer_skill_crud, volunteer_time_log_crud, volunteer_stats_crud
 )
@@ -26,6 +27,9 @@ from app.schemas.volunteer import (
     VolunteerTimeLog
 )
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
+from app.services.notification_service import NotificationService
+from app.services.analytics_service import track_volunteer_hours
+from app.services.event_bus import EventType, get_event_bus
 
 router = APIRouter(
     prefix="/volunteers",
@@ -613,7 +617,7 @@ def update_volunteer_hours(
         )
 
 @router.post("/hours/{time_log_id}/approve", response_model=VolunteerTimeLog)
-def approve_volunteer_hours(
+async def approve_volunteer_hours(
     time_log_id: int,
     approval_data: VolunteerTimeLogApproval,
     db: Session = Depends(get_db),
@@ -627,19 +631,96 @@ def approve_volunteer_hours(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to approve time logs"
             )
-        
+
         approved_log = volunteer_time_log_crud.approve_time_log(
             db, time_log_id, current_user.id, approval_data
         )
-        
+
         if not approved_log:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Time log not found"
             )
-        
+
+        # Get volunteer info
+        volunteer = db.get(Volunteer, approved_log.volunteer_id)
+        if volunteer:
+            # Notify volunteer about approval/rejection
+            if approval_data.is_approved:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=volunteer.user_id,
+                    title="Time Log Approved",
+                    message=f"{approved_log.hours_worked} hours of volunteer work have been approved!",
+                    notification_type=NotificationType.success,
+                    related_project_id=approved_log.project_id,
+                    related_task_id=approved_log.task_id
+                )
+
+                # Track volunteer hours metric
+                await track_volunteer_hours(
+                    db=db,
+                    volunteer_id=volunteer.id,
+                    hours=float(approved_log.hours_worked),
+                    project_id=approved_log.project_id,
+                    task_id=approved_log.task_id
+                )
+
+                # Publish event
+                try:
+                    event_bus = get_event_bus()
+                    await event_bus.publish(
+                        EventType.TIMELOG_APPROVED,
+                        {
+                            "time_log_id": time_log_id,
+                            "volunteer_id": volunteer.id,
+                            "user_id": volunteer.user_id,
+                            "hours_worked": float(approved_log.hours_worked),
+                            "project_id": approved_log.project_id,
+                            "task_id": approved_log.task_id,
+                            "approved_by": current_user.id
+                        },
+                        user_id=volunteer.user_id
+                    )
+                except Exception as e:
+                    pass
+            else:
+                # Rejection notification
+                rejection_message = f"Your time log ({approved_log.hours_worked} hours) was not approved."
+                if approval_data.notes:
+                    rejection_message += f" Reason: {approval_data.notes}"
+
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=volunteer.user_id,
+                    title="Time Log Rejected",
+                    message=rejection_message,
+                    notification_type=NotificationType.warning,
+                    related_project_id=approved_log.project_id,
+                    related_task_id=approved_log.task_id
+                )
+
+                # Publish event
+                try:
+                    event_bus = get_event_bus()
+                    await event_bus.publish(
+                        EventType.TIMELOG_REJECTED,
+                        {
+                            "time_log_id": time_log_id,
+                            "volunteer_id": volunteer.id,
+                            "user_id": volunteer.user_id,
+                            "hours_worked": float(approved_log.hours_worked),
+                            "project_id": approved_log.project_id,
+                            "rejected_by": current_user.id,
+                            "notes": approval_data.notes
+                        },
+                        user_id=volunteer.user_id
+                    )
+                except Exception as e:
+                    pass
+
         return VolunteerTimeLog(**approved_log.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:

@@ -46,7 +46,20 @@ class Settings(BaseSettings):
     # Security
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 30
-    
+
+    # File Storage
+    STORAGE_BACKEND: str = "local"  # "local" or "s3"
+    UPLOAD_DIR: str = "./uploads"
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB in bytes
+    ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    ALLOWED_DOCUMENT_TYPES: list[str] = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+
+    # AWS S3 (if using S3 storage)
+    S3_BUCKET: Optional[str] = None
+    S3_REGION: str = "us-east-1"
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+
     class Config:
         env_file = ".env"
         extra = "ignore"  # Allow extra fields in .env file
