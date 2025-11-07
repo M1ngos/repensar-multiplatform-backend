@@ -53,22 +53,60 @@ Create a `.env` file from the example and fill in your environment variables.
 cp .env.example .env
 ```
 
-### 5. Database Migrations
+### 5. Database Setup with Alembic
 
-Before running migrations, you need to set your database URL in `alembic.ini`.
+This project uses Alembic exclusively for database migrations and schema management.
 
-Open `alembic.ini` and set the `sqlalchemy.url` variable:
+#### Configure Database Connection
+
+Make sure your `.env` file has the `DATABASE_URL` set:
+
+```env
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+Alternatively, you can set it in `alembic.ini`:
 
 ```ini
 # alembic.ini
-
-[alembic]
-...
-sqlalchemy.url = postgresql://user:password@host/dbname
-...
+sqlalchemy.url = postgresql://user:password@host:5432/dbname
 ```
 
-Once configured, run the migrations:
+#### Run Migrations
+
+To create all tables and seed initial data:
+
+```bash
+alembic upgrade head
+```
+
+This will:
+- Create all database tables with proper constraints and indexes
+- Set up PostgreSQL functions and triggers
+- Create database views for reporting
+- Seed initial user types (admin, project_manager, staff_member, volunteer)
+
+#### Check Migration Status
+
+```bash
+alembic current
+```
+
+#### Rollback a Migration
+
+```bash
+alembic downgrade -1
+```
+
+#### Create a New Migration
+
+When you modify models, create a new migration:
+
+```bash
+alembic revision --autogenerate -m "description of changes"
+```
+
+Then review the generated migration file and apply it:
 
 ```bash
 alembic upgrade head

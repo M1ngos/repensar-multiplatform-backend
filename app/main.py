@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from app.database.engine import create_db_and_tables
+# Database migrations are managed exclusively via Alembic
+# from app.database.engine import create_db_and_tables
 from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create database and tables on startup
-    logger.info("Creating database tables...")
-    create_db_and_tables()
+    # NOTE: Database migrations are managed by Alembic exclusively.
+    # Run: alembic upgrade head
+    logger.info("Starting application...")
 
     # Initialize Redis and real-time services
     redis_async_client = None
