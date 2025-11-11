@@ -254,16 +254,16 @@ class TestPasswordReset:
     def test_reset_password_success(self, client: TestClient, session, test_user):
         # Set reset token for user
         test_user.password_reset_token = "valid_reset_token"
-        test_user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
+        test_user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         session.commit()
-        
+
         reset_data = {
             "token": "valid_reset_token",
             "new_password": "NewResetPassword123"
         }
-        
+
         response = client.post("/auth/reset-password", json=reset_data)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "Password reset successfully" in data["message"]
@@ -283,17 +283,17 @@ class TestPasswordReset:
 class TestEmailVerification:
     def test_verify_email_success(self, client: TestClient, session, unverified_user):
         unverified_user.email_verification_token = generate_token()
-        unverified_user.email_verification_expires = datetime.utcnow() + timedelta(hours=1)
+        unverified_user.email_verification_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         session.add(unverified_user)
         session.commit()
         session.refresh(unverified_user)
 
         response = client.post(f"/auth/verify-email?token={unverified_user.email_verification_token}")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "Email verified successfully" in data["message"]
-        
+
         # Refresh user and check verification status
         session.refresh(unverified_user)
         assert unverified_user.is_email_verified

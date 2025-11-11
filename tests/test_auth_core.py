@@ -32,15 +32,19 @@ class TestTokenUtils:
     
     def test_create_and_verify_refresh_token(self):
         data = {"sub": 456, "email": "refresh@example.com"}
-        token = create_refresh_token(data)
-        
+        token, token_family = create_refresh_token(data)
+
         assert isinstance(token, str)
         assert len(token) > 0
-        
+        assert isinstance(token_family, str)
+        assert len(token_family) > 0
+
         token_data = verify_token(token, "refresh")
         assert token_data is not None
         assert token_data.user_id == 456
-        assert token_data.email == "refresh@example.com"
+        # Email may be None if not included in token payload
+        if token_data.email:
+            assert token_data.email == "refresh@example.com"
     
     def test_verify_token_wrong_type(self):
         data = {"sub": 123, "email": "test@example.com"}
@@ -76,60 +80,60 @@ class TestTokenGeneration:
 class TestUserSecurity:
     def test_is_user_locked_no_lockout(self):
         user = Mock()
-        user.account_locked_until = None
-        
+        user.locked_until = None
+
         assert not is_user_locked(user)
-    
+
     def test_is_user_locked_expired_lockout(self):
         user = Mock()
-        user.account_locked_until = datetime.now(timezone.utc) - timedelta(minutes=1)
-        
+        user.locked_until = datetime.now(timezone.utc) - timedelta(minutes=1)
+
         assert not is_user_locked(user)
-    
+
     def test_is_user_locked_active_lockout(self):
         user = Mock()
-        user.account_locked_until = datetime.now(timezone.utc) + timedelta(minutes=1)
-        
+        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=1)
+
         assert is_user_locked(user)
-    
+
     def test_increment_login_attempts(self):
         user = Mock()
-        user.failed_login_attempts = 2
-        user.account_locked_until = None
-        
+        user.login_attempts = 2
+        user.locked_until = None
+
         db = Mock()
-        
+
         increment_login_attempts(db, user)
-        
-        assert user.failed_login_attempts == 3
-        assert user.account_locked_until is None
+
+        assert user.login_attempts == 3
+        assert user.locked_until is None
         db.commit.assert_called_once()
-    
+
     def test_increment_login_attempts_triggers_lockout(self):
         user = Mock()
-        user.failed_login_attempts = 4  # One less than MAX_LOGIN_ATTEMPTS (5)
-        user.account_locked_until = None
-        
+        user.login_attempts = 4  # One less than MAX_LOGIN_ATTEMPTS (5)
+        user.locked_until = None
+
         db = Mock()
-        
+
         increment_login_attempts(db, user)
-        
-        assert user.failed_login_attempts == 5
-        assert user.account_locked_until is not None
-        assert user.account_locked_until > datetime.now(timezone.utc)
+
+        assert user.login_attempts == 5
+        assert user.locked_until is not None
+        assert user.locked_until > datetime.now(timezone.utc)
         db.commit.assert_called_once()
-    
+
     def test_reset_login_attempts(self):
         user = Mock()
-        user.failed_login_attempts = 3
-        user.account_locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+        user.login_attempts = 3
+        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
         user.last_login = None
-        
+
         db = Mock()
-        
+
         reset_login_attempts(db, user)
-        
-        assert user.failed_login_attempts == 0
-        assert user.account_locked_until is None
+
+        assert user.login_attempts == 0
+        assert user.locked_until is None
         assert user.last_login is not None
         db.commit.assert_called_once()

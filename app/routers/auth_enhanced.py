@@ -5,9 +5,9 @@ This file demonstrates the integration of all security features.
 """
 
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from sqlmodel import Session, select
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 import secrets
 
@@ -232,7 +232,9 @@ async def refresh_token(
         )
 
     # Check if refresh token is expired
-    if user.refresh_token_expires and user.refresh_token_expires < datetime.now(timezone.utc):
+    # Remove timezone for comparison since SQLite stores naive datetimes
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if user.refresh_token_expires and user.refresh_token_expires < now:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token expired"
@@ -543,7 +545,9 @@ async def verify_email(
             detail="Invalid or expired verification token"
         )
 
-    if user.email_verification_expires < datetime.now(timezone.utc):
+    # Remove timezone for comparison since SQLite stores naive datetimes
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if user.email_verification_expires < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification token has expired"
@@ -722,7 +726,9 @@ async def reset_password(
             detail="Invalid or expired reset token"
         )
 
-    if user.password_reset_expires < datetime.now(timezone.utc):
+    # Remove timezone for comparison since SQLite stores naive datetimes
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if user.password_reset_expires < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset token has expired"
@@ -1036,3 +1042,51 @@ async def google_callback(
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
+
+@router.get("/status", response_model=Dict[str, Any])
+async def get_auth_status(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Check authentication status without requiring valid token."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "No token provided"
+        }
+
+    token = authorization.split(" ")[1]
+    token_data = verify_token(token)
+
+    if not token_data:
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "Invalid token"
+        }
+
+    user = db.exec(select(User).where(User.id == token_data.user_id)).first()
+    if not user:
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "User not found"
+        }
+
+    user_type = db.exec(select(UserType).where(UserType.id == user.user_type_id)).first()
+
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "user_type": user_type.name if user_type else None,
+            "is_active": user.is_active,
+            "is_email_verified": user.is_email_verified,
+            "permissions": user_type.permissions if user_type else None,
+            "dashboard_config": user_type.dashboard_config if user_type else None
+        },
+        "message": "Valid token"
+    }
