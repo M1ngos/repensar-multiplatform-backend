@@ -2,12 +2,18 @@
 Helper functions for authentication routes integrating all security features.
 """
 
+import os
 from fastapi import Request
 from typing import Optional, Tuple
 from datetime import datetime, timezone
 
 from app.core.audit_log import get_audit_logger
 from app.core.rate_limiter import get_rate_limiter, DEFAULT_RATE_LIMITS, RateLimitExceeded
+
+
+def _is_rate_limiting_disabled() -> bool:
+    """Check if rate limiting is disabled via environment variable."""
+    return os.getenv("DISABLE_RATE_LIMITING", "false").lower() in ("true", "1", "yes")
 
 
 def get_client_ip(request: Request) -> Optional[str]:
@@ -45,6 +51,9 @@ def check_login_rate_limit(identifier: str) -> None:
     Raises:
         RateLimitExceeded: If rate limit is exceeded
     """
+    if _is_rate_limiting_disabled():
+        return
+
     rate_limiter = get_rate_limiter()
     rate_limiter.check_rate_limit(
         key=f"login:{identifier}",
@@ -55,6 +64,9 @@ def check_login_rate_limit(identifier: str) -> None:
 
 def check_register_rate_limit(identifier: str) -> None:
     """Check registration rate limit."""
+    if _is_rate_limiting_disabled():
+        return
+
     rate_limiter = get_rate_limiter()
     rate_limiter.check_rate_limit(
         key=f"register:{identifier}",
@@ -65,6 +77,9 @@ def check_register_rate_limit(identifier: str) -> None:
 
 def check_token_refresh_rate_limit(identifier: str) -> None:
     """Check token refresh rate limit."""
+    if _is_rate_limiting_disabled():
+        return
+
     rate_limiter = get_rate_limiter()
     rate_limiter.check_rate_limit(
         key=f"refresh:{identifier}",
@@ -75,6 +90,9 @@ def check_token_refresh_rate_limit(identifier: str) -> None:
 
 def check_password_reset_rate_limit(identifier: str) -> None:
     """Check password reset rate limit."""
+    if _is_rate_limiting_disabled():
+        return
+
     rate_limiter = get_rate_limiter()
     rate_limiter.check_rate_limit(
         key=f"password_reset:{identifier}",

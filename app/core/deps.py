@@ -1,11 +1,12 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 from typing import Generator
 
 from app.database.engine import get_db
 from app.core.auth import verify_token
-from app.models.user import User
+from app.models.user import User, UserType
 
 security = HTTPBearer()
 
@@ -15,21 +16,27 @@ async def get_current_user(
 ) -> User:
     token = credentials.credentials
     token_data = verify_token(token)
-    
+
     if token_data is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    user = db.exec(select(User).where(User.id == token_data.user_id)).first()
+
+    # Eagerly load the user_type relationship to avoid lazy loading issues
+    user = db.exec(
+        select(User)
+        .options(selectinload(User.user_type))
+        .where(User.id == token_data.user_id)
+    ).first()
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
+
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
