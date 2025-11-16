@@ -181,10 +181,9 @@ def get_projects_dashboard(
 
 @router.get("/stats", response_model=ProjectStats)
 def get_project_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """Get project statistics."""
+    """Get project statistics (public endpoint)."""
     try:
         stats = project_crud.get_project_stats(db)
         return ProjectStats(**stats)

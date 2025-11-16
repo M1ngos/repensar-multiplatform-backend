@@ -163,10 +163,9 @@ def get_volunteers(
 
 @router.get("/stats", response_model=VolunteerStats)
 def get_volunteer_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """Get volunteer statistics dashboard."""
+    """Get volunteer statistics dashboard (public endpoint)."""
     try:
         stats = volunteer_stats_crud.get_volunteer_stats(db)
         return VolunteerStats(**stats)

@@ -151,10 +151,9 @@ def get_tasks(
 @router.get("/stats", response_model=TaskStats)
 def get_task_stats(
     project_id: Optional[int] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """Get task statistics."""
+    """Get task statistics (public endpoint)."""
     try:
         stats = task_crud.get_task_stats(db, project_id=project_id)
         return TaskStats(**stats)

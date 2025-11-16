@@ -211,12 +211,16 @@ class ProjectCRUD:
             .where(VolunteerTimeLog.approved == True)
         ).first()
         
-        # Average team size
-        avg_team_size = db.exec(
-            select(func.avg(func.count(ProjectTeam.id)))
+        # Average team size - use subquery to avoid nesting aggregates
+        team_counts_subquery = (
+            select(func.count(ProjectTeam.id).label("team_count"))
             .join(Project, ProjectTeam.project_id == Project.id)
             .where(ProjectTeam.is_active == True)
             .group_by(Project.id)
+            .subquery()
+        )
+        avg_team_size = db.exec(
+            select(func.avg(team_counts_subquery.c.team_count))
         ).first()
         
         return {
