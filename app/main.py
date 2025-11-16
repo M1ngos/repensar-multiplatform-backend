@@ -5,7 +5,7 @@ import logging
 
 # Database migrations are managed exclusively via Alembic
 # from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search, blog
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
 from app.core.config import settings
@@ -162,6 +162,7 @@ app.include_router(users.router)          # Users: /users/* (user management)
 app.include_router(notifications.router)  # Notifications: /notifications/* (real-time SSE)
 app.include_router(files.router)          # Files: /files/* (file upload & management)
 app.include_router(search.router)         # Search: /search/* (full-text search)
+app.include_router(blog.router)           # Blog: /blog/* (blog posts, categories, tags)
 app.include_router(volunteers.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
@@ -181,6 +182,7 @@ def read_root():
         "modules": {
             "users": "/users/* (user management and search)",
             "notifications": "/notifications/* (real-time notifications via SSE)",
+            "blog": "/blog/* (blog posts, categories, and tags)",
             "projects": "/projects/* (project management with relations)",
             "tasks": "/tasks/* (task tracking and assignments)",
             "volunteers": "/volunteers/* (volunteer profiles and management)",
