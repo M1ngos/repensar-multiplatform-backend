@@ -9,11 +9,12 @@ from datetime import datetime, timezone
 
 from app.core.audit_log import get_audit_logger
 from app.core.rate_limiter import get_rate_limiter, DEFAULT_RATE_LIMITS, RateLimitExceeded
+from app.core.config import settings
 
 
 def _is_rate_limiting_disabled() -> bool:
     """Check if rate limiting is disabled via environment variable."""
-    return os.getenv("DISABLE_RATE_LIMITING", "false").lower() in ("true", "1", "yes")
+    return settings.DISABLE_RATE_LIMITING
 
 
 def get_client_ip(request: Request) -> Optional[str]:

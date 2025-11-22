@@ -99,6 +99,7 @@ def register_volunteer(
         
         return {
             "message": "Volunteer registered successfully",
+            "id": volunteer.id,
             "volunteer_id": volunteer.volunteer_id,
             "user_id": user.id
         }

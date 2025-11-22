@@ -29,7 +29,90 @@ import httpx
 from faker import Faker
 
 # Initialize Faker for generating realistic mock data
-fake = Faker()
+fake = Faker('pt_BR')  # Use Portuguese locale
+
+# Vocabulário ambiental em português
+ADJETIVOS_AMBIENTAIS = [
+    "Sustentável", "Verde", "Ecológico", "Renovável", "Orgânico", "Carbono Neutro",
+    "Lixo Zero", "Resiliente ao Clima", "Biodiverso", "Conservacionista",
+    "Regenerativo", "Positivo para a Natureza", "Baixo Impacto", "Economia Circular", "Baseado na Natureza"
+]
+
+SUBSTANTIVOS_AMBIENTAIS = [
+    "Floresta", "Oceano", "Rio", "Mangue", "Recife de Coral", "Cerrado",
+    "Ecossistema", "Corredor Ecológico", "Parque Urbano", "Horta Comunitária", "Bacia Hidrográfica",
+    "Reserva Marinha", "Reserva Natural", "Jardim Botânico", "Mata Atlântica", "Pantanal"
+]
+
+ACOES_AMBIENTAIS = [
+    "Restauração", "Conservação", "Proteção", "Reflorestamento", "Reabilitação",
+    "Preservação", "Revitalização", "Regeneração", "Recuperação", "Valorização",
+    "Monitoramento", "Gestão", "Cultivo", "Renaturalização", "Remediação"
+]
+
+TIPOS_PROJETO = [
+    "Iniciativa de Plantio de Árvores", "Limpeza Costeira", "Restauração de Habitat",
+    "Projeto de Arborização Urbana", "Programa Carbono Zero", "Campanha Redução de Resíduos",
+    "Transição Energias Renováveis", "Monitoramento Qualidade da Água", "Jardim de Polinizadores",
+    "Reintrodução de Espécies Nativas", "Programa de Compostagem", "Infraestrutura Verde",
+    "Plano de Ação Climática", "Inventário de Biodiversidade", "Programa Educação Ambiental"
+]
+
+PREFIXOS_TAREFA = [
+    "Plantar", "Monitorar", "Avaliar", "Inventariar", "Coletar", "Analisar", "Documentar",
+    "Instalar", "Remover", "Limpar", "Restaurar", "Proteger", "Manter", "Educar",
+    "Coordenar", "Organizar", "Implementar", "Avaliar", "Pesquisar", "Mapear"
+]
+
+OBJETOS_TAREFA = [
+    "árvores nativas", "mudas", "espécies invasoras", "amostras de água", "qualidade do solo",
+    "populações de fauna", "emissões de carbono", "fluxos de resíduos", "painéis solares",
+    "jardins de chuva", "composteiras", "estações de reciclagem", "habitats", "trilhas",
+    "sinalização educativa", "materiais didáticos", "sensores ambientais", "equipamentos de monitoramento"
+]
+
+ATIVIDADES_VOLUNTARIO = [
+    "Plantou {} mudas de espécies nativas na zona ripária",
+    "Removeu espécies invasoras de {} hectares de área úmida",
+    "Coletou amostras de água em {} estações de monitoramento",
+    "Conduziu oficina de educação ambiental para {} membros da comunidade",
+    "Instalou {} painéis solares no centro comunitário",
+    "Construiu {} canteiros elevados para agricultura urbana",
+    "Removeu {} kg de resíduos marinhos da costa",
+    "Realizou inventário de fauna identificando {} espécies",
+    "Manteve {} sistemas de compostagem em escolas locais",
+    "Mapeou {} km de trilhas ecológicas na área de conservação"
+]
+
+def generate_environmental_project_name():
+    """Gera nome de projeto ambiental em português."""
+    templates = [
+        f"{random.choice(ADJETIVOS_AMBIENTAIS)} {random.choice(SUBSTANTIVOS_AMBIENTAIS)} - {random.choice(ACOES_AMBIENTAIS)}",
+        f"{random.choice(TIPOS_PROJETO)}",
+        f"Iniciativa {random.choice(ACOES_AMBIENTAIS)} {fake.city()}",
+        f"Programa {random.choice(SUBSTANTIVOS_AMBIENTAIS)} {random.choice(ADJETIVOS_AMBIENTAIS)}"
+    ]
+    return random.choice(templates)
+
+def generate_environmental_description():
+    """Gera descrição de projeto ambiental em português."""
+    templates = [
+        f"Iniciativa comunitária para restaurar e proteger ecossistemas de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} através de atividades de {random.choice(ACOES_AMBIENTAIS).lower()} e engajamento voluntário.",
+        f"Este projeto foca em criar soluções {random.choice(ADJETIVOS_AMBIENTAIS).lower()}s para conservação de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} e resiliência climática.",
+        f"Trabalhando com comunidades locais para implementar práticas {random.choice(ADJETIVOS_AMBIENTAIS).lower()}s que melhoram a biodiversidade e saúde dos ecossistemas.",
+        f"Programa abrangente de {random.choice(ACOES_AMBIENTAIS).lower()} visando a reabilitação de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} e sustentabilidade de longo prazo."
+    ]
+    return random.choice(templates)
+
+def generate_task_title():
+    """Gera título de tarefa ambiental em português."""
+    return f"{random.choice(PREFIXOS_TAREFA)} {random.choice(OBJETOS_TAREFA)}"
+
+def generate_volunteer_activity():
+    """Gera descrição de atividade voluntária em português."""
+    activity = random.choice(ATIVIDADES_VOLUNTARIO)
+    number = random.randint(5, 100)
+    return activity.format(number)
 
 # ANSI color codes for terminal output
 class Colors:
@@ -383,6 +466,27 @@ class DataSeeder:
 
         self.stats.assert_true(len(self.volunteers) >= count * 0.9, f"At least 90% of volunteers should be created")
 
+        # Fetch all volunteers to get their full details with IDs
+        print(f"{Colors.CYAN}Fetching created volunteers...{Colors.RESET}")
+        response = self._make_request(
+            "GET",
+            "/volunteers/?limit=200",
+            entity_type="VolunteerFetch",
+            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+        )
+        if response and response.status_code == 200:
+            fetched_volunteers = response.json()
+            # Update volunteers list with full details including database IDs
+            if isinstance(fetched_volunteers, list) and len(fetched_volunteers) > 0:
+                # Filter to only recently created volunteers (avoid old data)
+                self.volunteers = fetched_volunteers[-count:] if len(fetched_volunteers) > count else fetched_volunteers
+                print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.volunteers)} volunteer records with IDs")
+            else:
+                print(f"{Colors.YELLOW}⚠{Colors.RESET} No volunteers found or unexpected response format")
+        else:
+            print(f"{Colors.YELLOW}⚠{Colors.RESET} Failed to fetch volunteers (status: {response.status_code if response else 'None'})")
+            print(f"{Colors.YELLOW}  Skill assignments and time logs may fail{Colors.RESET}")
+
         # Validate volunteer-user relationship
         if self.volunteers:
             sample_volunteer = self.volunteers[0]
@@ -494,8 +598,8 @@ class DataSeeder:
             requires_volunteers = random.choice([True, False])
 
             project_data = {
-                "name": f"{fake.catch_phrase()} Project",
-                "description": fake.text(max_nb_chars=200),
+                "name": generate_environmental_project_name(),
+                "description": generate_environmental_description(),
                 "category": random.choice(categories),
                 "status": random.choice(statuses),
                 "priority": random.choice(priorities),
@@ -592,8 +696,9 @@ class DataSeeder:
             return
 
         milestone_templates = [
-            "Project Kickoff", "Planning Complete", "50% Completion",
-            "Testing Phase", "Final Review", "Project Completion"
+            "Lançamento do Projeto", "Planejamento Concluído", "50% de Execução",
+            "Avaliação de Impacto", "Revisão Final", "Projeto Concluído",
+            "Primeira Colheita", "Meta de Plantio Atingida", "Certificação Ambiental"
         ]
         statuses = ["pending", "achieved", "missed", "cancelled"]
         milestones_count = 0
@@ -608,8 +713,9 @@ class DataSeeder:
 
             for j in range(num_milestones):
                 milestone_data = {
+                    "project_id": project_id,  # Required by schema
                     "name": random.choice(milestone_templates),
-                    "description": fake.sentence(),
+                    "description": f"Marco importante para {random.choice(ACOES_AMBIENTAIS).lower()} e {random.choice(['monitoramento', 'avaliação', 'expansão'])} do projeto.",
                     "target_date": (date.today() + timedelta(days=random.randint(30, 365))).isoformat(),
                     "status": random.choice(statuses)
                 }
@@ -637,12 +743,15 @@ class DataSeeder:
             return
 
         metric_types = [
-            {"name": "Trees Planted", "type": "count", "unit": "trees"},
-            {"name": "Carbon Offset", "type": "measurement", "unit": "kg CO2"},
-            {"name": "Waste Recycled", "type": "measurement", "unit": "kg"},
-            {"name": "Area Restored", "type": "measurement", "unit": "hectares"},
-            {"name": "Water Saved", "type": "measurement", "unit": "liters"},
-            {"name": "Species Protected", "type": "count", "unit": "species"}
+            {"name": "Árvores Plantadas", "type": "count", "unit": "árvores"},
+            {"name": "Carbono Compensado", "type": "measurement", "unit": "kg CO2"},
+            {"name": "Resíduos Reciclados", "type": "measurement", "unit": "kg"},
+            {"name": "Área Restaurada", "type": "measurement", "unit": "hectares"},
+            {"name": "Água Economizada", "type": "measurement", "unit": "litros"},
+            {"name": "Espécies Protegidas", "type": "count", "unit": "espécies"},
+            {"name": "Mudas Distribuídas", "type": "count", "unit": "mudas"},
+            {"name": "Voluntários Engajados", "type": "count", "unit": "pessoas"},
+            {"name": "Biodiversidade Recuperada", "type": "measurement", "unit": "índice"}
         ]
 
         metrics_count = 0
@@ -658,6 +767,7 @@ class DataSeeder:
 
             for metric_template in selected_metrics:
                 metric_data = {
+                    "project_id": project_id,  # Required by schema
                     "metric_name": metric_template["name"],
                     "metric_type": metric_template["type"],
                     "unit": metric_template["unit"],
@@ -697,8 +807,8 @@ class DataSeeder:
 
             task_data = {
                 "project_id": project_id,
-                "title": fake.sentence(nb_words=6),
-                "description": fake.text(max_nb_chars=150),
+                "title": generate_task_title(),
+                "description": generate_environmental_description(),
                 "status": random.choice(statuses),
                 "priority": random.choice(priorities),
                 "suitable_for_volunteers": random.choice([True, False]),
@@ -841,10 +951,10 @@ class DataSeeder:
         resource_types = ["human", "equipment", "material", "financial"]
 
         resource_templates = {
-            "human": ["Volunteer Coordinator", "Field Supervisor", "Technical Expert"],
-            "equipment": ["Laptop", "Projector", "Camera", "Truck", "Tools Kit"],
-            "material": ["Seeds", "Saplings", "Fertilizer", "Compost", "Mulch"],
-            "financial": ["Grant Funding", "Donation", "Sponsorship"]
+            "human": ["Coordenador Ambiental", "Supervisor de Campo", "Especialista em Biodiversidade", "Educador Ambiental"],
+            "equipment": ["GPS para Mapeamento", "Câmera Trap", "Kit Análise de Água", "Ferramentas de Plantio", "Veículo 4x4"],
+            "material": ["Sementes Nativas", "Mudas Florestais", "Adubo Orgânico", "Composto", "Cobertura Morta", "Substrato"],
+            "financial": ["Financiamento Verde", "Doação Ambiental", "Patrocínio Sustentável", "Fundo Conservação"]
         }
 
         for i in range(count):
@@ -853,8 +963,8 @@ class DataSeeder:
             resource_data = {
                 "name": random.choice(resource_templates[resource_type]),
                 "type": resource_type,
-                "description": fake.sentence(),
-                "unit": random.choice(["unit", "kg", "liters", "hours", "USD"]),
+                "description": f"Recurso essencial para {random.choice(ACOES_AMBIENTAIS).lower()} e {random.choice(['conservação', 'monitoramento', 'educação'])} ambiental.",
+                "unit": random.choice(["unidade", "kg", "litros", "horas", "BRL"]),
                 "unit_cost": round(random.uniform(10, 1000), 2) if resource_type != "human" else None,
                 "available_quantity": round(random.uniform(10, 500), 2),
                 "location": fake.city(),
@@ -955,10 +1065,10 @@ class DataSeeder:
                 project_id = project.get("id")
 
             log_data = {
+                "volunteer_id": volunteer_id,
                 "date": (date.today() - timedelta(days=random.randint(0, 365))).isoformat(),
-                "hours_worked": round(random.uniform(1, 8), 2),
-                "activity_description": fake.sentence(),
-                "approved": random.choice([True, False])
+                "hours": round(random.uniform(1, 8), 2),
+                "activity_description": generate_volunteer_activity()
             }
 
             if task_id:
@@ -1009,11 +1119,13 @@ class DataSeeder:
         notification_types = ["info", "success", "warning", "error"]
 
         notification_templates = [
-            {"title": "Welcome!", "message": "Welcome to Repensar platform!", "type": "info"},
-            {"title": "Task Assigned", "message": "You have been assigned a new task.", "type": "info"},
-            {"title": "Hours Approved", "message": "Your volunteer hours have been approved.", "type": "success"},
-            {"title": "Project Update", "message": "A project you're involved in has been updated.", "type": "info"},
-            {"title": "Reminder", "message": "Don't forget to log your volunteer hours.", "type": "warning"}
+            {"title": "Bem-vindo!", "message": "Bem-vindo à plataforma Repensar! Juntos por um futuro sustentável.", "type": "info"},
+            {"title": "Nova Tarefa Ambiental", "message": "Você foi designado para uma nova atividade de conservação.", "type": "info"},
+            {"title": "Horas Aprovadas", "message": "Suas horas voluntárias foram aprovadas. Obrigado pelo seu impacto positivo!", "type": "success"},
+            {"title": "Atualização de Projeto", "message": "Um projeto ambiental que você participa foi atualizado.", "type": "info"},
+            {"title": "Lembrete", "message": "Não esqueça de registrar suas horas de voluntariado.", "type": "warning"},
+            {"title": "Meta Alcançada!", "message": "Parabéns! Seu projeto atingiu uma meta ambiental importante.", "type": "success"},
+            {"title": "Novo Plantio", "message": "Uma nova atividade de plantio está disponível na sua região.", "type": "info"}
         ]
 
         for i in range(count):

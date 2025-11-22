@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Security
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 30
+    DISABLE_RATE_LIMITING: bool = False  # Set to True for development/testing
 
     # File Storage
     STORAGE_BACKEND: str = "local"  # "local" or "s3"
