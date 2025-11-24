@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Gamification Module provides a comprehensive system for recognizing and rewarding volunteer contributions through badges, achievements, points, and leaderboards. This document describes all available API endpoints for frontend integration.
+The Gamification Module provides a comprehensive system for recogniring and rewarding volunteer contributions through badges, achievements, points, and leaderboards. This document describes all available API endpoints for frontend integration.
 
 **Base URL**: `/gamification`
 **Authentication**: All endpoints require JWT authentication via Bearer token
