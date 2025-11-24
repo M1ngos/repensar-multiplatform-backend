@@ -45,6 +45,12 @@ class EventType(str, Enum):
     SYNC_CONFLICT_RESOLVED = "sync.conflict_resolved"
     SYNC_COMPLETED = "sync.completed"
 
+    # Gamification events
+    BADGE_EARNED = "badge.earned"
+    ACHIEVEMENT_COMPLETED = "achievement.completed"
+    POINTS_AWARDED = "points.awarded"
+    RANK_CHANGED = "rank.changed"
+
     # System events
     NOTIFICATION_CREATED = "notification.created"
     METRIC_RECORDED = "metric.recorded"

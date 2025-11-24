@@ -34,6 +34,7 @@ class BackgroundTaskManager:
         # Start periodic cleanup tasks
         self.tasks.append(asyncio.create_task(self.cleanup_expired_notifications_task()))
         self.tasks.append(asyncio.create_task(self.cleanup_stale_sse_connections_task()))
+        self.tasks.append(asyncio.create_task(self.update_leaderboards_task()))
 
         logger.info(f"Started {len(self.tasks)} background tasks")
 
@@ -107,6 +108,39 @@ class BackgroundTaskManager:
                 break
             except Exception as e:
                 logger.error(f"Error in stale SSE connections cleanup task: {e}")
+                # Wait before retrying
+                await asyncio.sleep(60)
+
+    async def update_leaderboards_task(self):
+        """
+        Periodically update all leaderboards (points, hours, projects).
+        Runs every hour.
+        """
+        while self._running:
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+
+                # Get a database session
+                db_gen = get_db()
+                db = next(db_gen)
+
+                try:
+                    from app.services.gamification_service import GamificationService
+
+                    count = GamificationService.update_all_leaderboards(db)
+                    logger.info(f"Updated {count} leaderboards")
+                finally:
+                    # Close the database session
+                    try:
+                        next(db_gen)
+                    except StopIteration:
+                        pass
+
+            except asyncio.CancelledError:
+                logger.info("Leaderboard update task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in leaderboard update task: {e}")
                 # Wait before retrying
                 await asyncio.sleep(60)
 

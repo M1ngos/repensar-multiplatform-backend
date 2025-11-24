@@ -5,7 +5,7 @@ import logging
 
 # Database migrations are managed exclusively via Alembic
 # from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search, blog
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search, blog, gamification
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
 from app.core.config import settings
@@ -95,6 +95,11 @@ async def lifespan(app: FastAPI):
     event_bus.subscribe(EventType.NOTIFICATION_CREATED, broadcast_notification_to_sse)
     logger.info("✓ SSE notification broadcasting enabled")
 
+    # Initialize gamification event subscriptions
+    from app.services.gamification_service import initialize_gamification_events
+    initialize_gamification_events()
+    logger.info("✓ Gamification event subscriptions initialized")
+
     # Initialize and start background tasks
     from app.core.background_tasks import BackgroundTaskManager
     import app.core.background_tasks as background_tasks_module
@@ -169,6 +174,7 @@ app.include_router(tasks.router)
 app.include_router(resources.router)
 app.include_router(reports.router)
 app.include_router(analytics.router)      # Analytics: /analytics/* (time-series & dashboards)
+app.include_router(gamification.router)   # Gamification: /gamification/* (badges, achievements, points, leaderboards)
 
 @app.get("/")
 def read_root():
@@ -189,7 +195,8 @@ def read_root():
             "resources": "/resources/* (resource allocation)",
             "analytics": "/analytics/* (time-series metrics and dashboards)",
             "reports": "/reports/* (reports and data exports)",
-            "sync": "/sync/* (offline-first sync for mobile/desktop)"
+            "sync": "/sync/* (offline-first sync for mobile/desktop)",
+            "gamification": "/gamification/* (badges, achievements, points, leaderboards)"
         },
         "docs": "/docs",
         "redoc": "/redoc"
