@@ -10,10 +10,11 @@ IMPORTANT: Set DISABLE_RATE_LIMITING=true in .env to bypass rate limits during s
 Usage:
     python scripts/seed_data.py [--api-url http://localhost:8000] [--dry-run] [--delay 0.1]
 
+    # Quick test with minimal data (5 users, 5 volunteers, 3 projects, etc.)
+    python scripts/seed_data.py --test
+
     # For faster seeding (requires DISABLE_RATE_LIMITING=true in .env)
     python scripts/seed_data.py --delay 0.05
-
-    # With custom counts (edit run() method to adjust)
 """
 
 import argparse
@@ -22,6 +23,7 @@ import random
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from collections import defaultdict
 
@@ -82,6 +84,63 @@ ATIVIDADES_VOLUNTARIO = [
     "Realizou inventário de fauna identificando {} espécies",
     "Manteve {} sistemas de compostagem em escolas locais",
     "Mapeou {} km de trilhas ecológicas na área de conservação"
+]
+
+# Gamification templates
+BADGE_TEMPLATES = [
+    # Time-based badges
+    {"name": "Primeiro Passo", "description": "Completou suas primeiras 10 horas de voluntariado", "category": "time", "rarity": "common", "points_value": 10, "color": "#4CAF50"},
+    {"name": "Dedicado", "description": "Completou 50 horas de voluntariado", "category": "time", "rarity": "common", "points_value": 25, "color": "#8BC34A"},
+    {"name": "Comprometido", "description": "Completou 100 horas de voluntariado", "category": "time", "rarity": "rare", "points_value": 50, "color": "#2196F3"},
+    {"name": "Guardião Ambiental", "description": "Completou 250 horas de voluntariado", "category": "time", "rarity": "epic", "points_value": 100, "color": "#9C27B0"},
+    {"name": "Lenda Verde", "description": "Completou 500 horas de voluntariado", "category": "time", "rarity": "legendary", "points_value": 250, "color": "#FFD700"},
+    # Project badges
+    {"name": "Colaborador", "description": "Participou de seu primeiro projeto", "category": "projects", "rarity": "common", "points_value": 15, "color": "#00BCD4"},
+    {"name": "Multi-Projetos", "description": "Participou de 5 projetos diferentes", "category": "projects", "rarity": "rare", "points_value": 40, "color": "#3F51B5"},
+    {"name": "Veterano de Projetos", "description": "Participou de 10 projetos diferentes", "category": "projects", "rarity": "epic", "points_value": 80, "color": "#673AB7"},
+    # Skill badges
+    {"name": "Aprendiz", "description": "Adquiriu sua primeira habilidade", "category": "skills", "rarity": "common", "points_value": 10, "color": "#FF9800"},
+    {"name": "Versátil", "description": "Possui 5 habilidades diferentes", "category": "skills", "rarity": "rare", "points_value": 35, "color": "#FF5722"},
+    {"name": "Especialista", "description": "Alcançou nível expert em uma habilidade", "category": "skills", "rarity": "epic", "points_value": 75, "color": "#E91E63"},
+    # Leadership badges
+    {"name": "Mentor", "description": "Ajudou a treinar novos voluntários", "category": "leadership", "rarity": "rare", "points_value": 45, "color": "#607D8B"},
+    {"name": "Líder de Equipe", "description": "Liderou uma equipe em um projeto", "category": "leadership", "rarity": "epic", "points_value": 90, "color": "#795548"},
+    # Special badges
+    {"name": "Pioneiro", "description": "Um dos primeiros voluntários da plataforma", "category": "special", "rarity": "legendary", "points_value": 200, "color": "#F44336", "is_secret": True},
+    {"name": "Maratonista Verde", "description": "Completou 8 horas em um único dia", "category": "special", "rarity": "rare", "points_value": 50, "color": "#009688"},
+    {"name": "Consistente", "description": "Manteve uma sequência de 7 dias consecutivos", "category": "special", "rarity": "rare", "points_value": 40, "color": "#CDDC39"},
+]
+
+ACHIEVEMENT_TEMPLATES = [
+    # Hours-based achievements
+    {"name": "Primeiras 10 Horas", "description": "Complete 10 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 10}, "points_reward": 50},
+    {"name": "50 Horas de Impacto", "description": "Complete 50 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 50}, "points_reward": 150},
+    {"name": "Centurião Verde", "description": "Complete 100 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 100}, "points_reward": 300},
+    {"name": "Mestre do Tempo", "description": "Complete 250 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 250}, "points_reward": 500},
+    # Task-based achievements
+    {"name": "Primeira Tarefa", "description": "Complete sua primeira tarefa", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 1}, "points_reward": 25},
+    {"name": "Realizador", "description": "Complete 10 tarefas", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 10}, "points_reward": 100},
+    {"name": "Super Realizador", "description": "Complete 50 tarefas", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 50}, "points_reward": 250},
+    # Project-based achievements
+    {"name": "Primeiro Projeto", "description": "Participe de seu primeiro projeto", "achievement_type": "projects_completed", "criteria": {"projects_required": 1}, "points_reward": 30},
+    {"name": "Explorador de Projetos", "description": "Participe de 5 projetos", "achievement_type": "projects_completed", "criteria": {"projects_required": 5}, "points_reward": 120},
+    # Streak achievements
+    {"name": "Semana Perfeita", "description": "Mantenha uma sequência de 7 dias", "achievement_type": "consecutive_days", "criteria": {"days_required": 7}, "points_reward": 75},
+    {"name": "Mês de Dedicação", "description": "Mantenha uma sequência de 30 dias", "achievement_type": "consecutive_days", "criteria": {"days_required": 30}, "points_reward": 200},
+    # Skill achievements
+    {"name": "Primeira Habilidade", "description": "Adquira sua primeira habilidade", "achievement_type": "skills_acquired", "criteria": {"skills_required": 1}, "points_reward": 20},
+    {"name": "Colecionador de Habilidades", "description": "Adquira 5 habilidades", "achievement_type": "skills_acquired", "criteria": {"skills_required": 5}, "points_reward": 100},
+]
+
+POINTS_EVENT_DESCRIPTIONS = [
+    "Horas de voluntariado registradas",
+    "Tarefa completada com sucesso",
+    "Participação em projeto ambiental",
+    "Treinamento concluído",
+    "Conquista desbloqueada",
+    "Insígnia conquistada",
+    "Bônus de sequência diária",
+    "Reconhecimento especial",
 ]
 
 def generate_environmental_project_name():
@@ -207,12 +266,17 @@ class DataSeeder:
         self.resources = []
         self.skills = []
         self.conversations = []
+        self.badges = []
+        self.achievements = []
 
         # Authentication tokens
         self.admin_token = None
         self.manager_token = None
         self.staff_token = None
         self.volunteer_token = None
+
+        # Credential tracking for gen_creds.txt
+        self.credentials = []
 
         # Error tracking per entity type (to limit console spam)
         self.error_counts = defaultdict(int)
@@ -292,8 +356,10 @@ class DataSeeder:
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Admin user registered")
             self.stats.record_created("Admin User")
+            self.credentials.append({"type": "admin", "name": admin_data["name"], "email": admin_data["email"], "password": admin_data["password"]})
         elif response and response.status_code == 400:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Admin user already exists, attempting login")
+            self.credentials.append({"type": "admin", "name": admin_data["name"], "email": admin_data["email"], "password": admin_data["password"]})
         else:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Admin registration returned status {response.status_code if response else 'None'}, attempting login anyway")
 
@@ -325,8 +391,10 @@ class DataSeeder:
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Manager user registered")
             self.stats.record_created("Manager User")
+            self.credentials.append({"type": "project_manager", "name": manager_data["name"], "email": manager_data["email"], "password": manager_data["password"]})
         elif response and response.status_code == 400:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Manager user already exists, attempting login")
+            self.credentials.append({"type": "project_manager", "name": manager_data["name"], "email": manager_data["email"], "password": manager_data["password"]})
 
         login_response = self._make_request("POST", "/auth/login", json={
             "email": manager_data["email"],
@@ -354,8 +422,10 @@ class DataSeeder:
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Staff user registered")
             self.stats.record_created("Staff User")
+            self.credentials.append({"type": "staff_member", "name": staff_data["name"], "email": staff_data["email"], "password": staff_data["password"]})
         elif response and response.status_code == 400:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Staff user already exists, attempting login")
+            self.credentials.append({"type": "staff_member", "name": staff_data["name"], "email": staff_data["email"], "password": staff_data["password"]})
 
         login_response = self._make_request("POST", "/auth/login", json={
             "email": staff_data["email"],
@@ -389,6 +459,7 @@ class DataSeeder:
                 user = response.json()
                 self.users.append(user)
                 self.stats.record_created("User")
+                self.credentials.append({"type": user_data["user_type"], "name": user_data["name"], "email": user_data["email"], "password": user_data["password"]})
             else:
                 status = response.status_code if response else None
                 self.stats.record_failed("User", f"Failed to create user: {user_data['email']}", status)
@@ -454,6 +525,7 @@ class DataSeeder:
                 volunteer = response.json()
                 self.volunteers.append(volunteer)
                 self.stats.record_created("Volunteer")
+                self.credentials.append({"type": "volunteer", "name": volunteer_data["name"], "email": volunteer_data["email"], "password": volunteer_data["password"]})
             else:
                 status = response.status_code if response else None
                 self.stats.record_failed("Volunteer", f"Failed to create volunteer", status)
@@ -470,7 +542,7 @@ class DataSeeder:
         print(f"{Colors.CYAN}Fetching created volunteers...{Colors.RESET}")
         response = self._make_request(
             "GET",
-            "/volunteers/?limit=200",
+            "/volunteers/?limit=100",
             entity_type="VolunteerFetch",
             headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
         )
@@ -805,14 +877,18 @@ class DataSeeder:
             project = random.choice(self.projects)
             project_id = project.get("id")
 
+            # Ensure at least half the tasks are suitable for volunteers
+            # First half are always suitable, second half are random
+            suitable_for_volunteers = (i < count // 2) or random.choice([True, False])
+
             task_data = {
                 "project_id": project_id,
                 "title": generate_task_title(),
                 "description": generate_environmental_description(),
                 "status": random.choice(statuses),
                 "priority": random.choice(priorities),
-                "suitable_for_volunteers": random.choice([True, False]),
-                "volunteer_spots": random.randint(1, 10) if random.choice([True, False]) else 0,
+                "suitable_for_volunteers": suitable_for_volunteers,
+                "volunteer_spots": random.randint(1, 10) if suitable_for_volunteers else 0,
                 "estimated_hours": round(random.uniform(1, 40), 1),
                 "start_date": (date.today() + timedelta(days=random.randint(0, 30))).isoformat(),
                 "due_date": (date.today() + timedelta(days=random.randint(30, 90))).isoformat()
@@ -867,14 +943,19 @@ class DataSeeder:
 
         # Filter tasks suitable for volunteers
         volunteer_tasks = [t for t in self.tasks if t.get("suitable_for_volunteers")]
+        print(f"{Colors.CYAN}Found {len(volunteer_tasks)} tasks suitable for volunteers{Colors.RESET}")
+
+        if not volunteer_tasks:
+            print(f"{Colors.YELLOW}⚠{Colors.RESET} No tasks marked as suitable for volunteers")
+            return
 
         for task in volunteer_tasks:
             task_id = task.get("id")
             if not task_id:
                 continue
 
-            # Assign 1-5 volunteers to each task
-            num_volunteers = random.randint(1, min(5, len(self.volunteers)))
+            # Assign 1-3 volunteers to each task (reduced to avoid duplicate assignments)
+            num_volunteers = random.randint(1, min(3, len(self.volunteers)))
             selected_volunteers = random.sample(self.volunteers, num_volunteers)
 
             for volunteer in selected_volunteers:
@@ -882,16 +963,15 @@ class DataSeeder:
                 if not volunteer_id:
                     continue
 
+                # API only accepts volunteer_id for TaskVolunteerCreate
                 assignment_data = {
-                    "volunteer_id": volunteer_id,
-                    "is_active": True,
-                    "hours_contributed": round(random.uniform(0, 20), 2),
-                    "performance_rating": random.randint(1, 5) if random.choice([True, False]) else None
+                    "volunteer_id": volunteer_id
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/tasks/{task_id}/volunteers",
+                    entity_type="TaskVolunteer",
                     json=assignment_data,
                     headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
                 )
@@ -901,7 +981,8 @@ class DataSeeder:
                     self.stats.record_created("TaskVolunteer")
 
         print(f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} task-volunteer assignments")
-        self.stats.assert_true(assignments_count > 0, "At least one task-volunteer assignment should be created")
+        if volunteer_tasks:
+            self.stats.assert_true(assignments_count > 0, "At least one task-volunteer assignment should be created")
 
     def seed_task_dependencies(self):
         """Create task dependencies."""
@@ -1290,26 +1371,325 @@ class DataSeeder:
                 self.stats.assert_true(isinstance(data, list), "Project milestones should return a list")
                 print(f"{Colors.GREEN}✓{Colors.RESET} Project → Milestones relationship validated")
 
-    def run(self):
-        """Execute the complete seeding process."""
+    # ============================================================
+    # GAMIFICATION SEEDING
+    # ============================================================
+
+    def seed_badges(self):
+        """Seed badge definitions."""
+        print(f"\n{Colors.BOLD}Step 18: Seeding Badges ({len(BADGE_TEMPLATES)} badges){Colors.RESET}")
+
+        for i, badge_data in enumerate(BADGE_TEMPLATES):
+            response = self._make_request(
+                "POST",
+                "/gamification/badges",
+                entity_type="Badge",
+                json=badge_data,
+                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            )
+
+            if response and response.status_code in [200, 201]:
+                badge = response.json()
+                self.badges.append(badge)
+                self.stats.record_created("Badge")
+            elif response and response.status_code == 400:
+                # Badge might already exist, try to fetch it
+                pass
+            else:
+                status = response.status_code if response else None
+                self.stats.record_failed("Badge", f"Failed to create badge: {badge_data['name']}", status)
+
+            self._log_progress("Badges", i + 1, len(BADGE_TEMPLATES))
+
+        # Fetch all badges to get their IDs
+        response = self._make_request(
+            "GET",
+            "/gamification/badges?limit=100",
+            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+        )
+        if response and response.status_code == 200:
+            self.badges = response.json()
+            print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.badges)} badges")
+
+    def seed_achievements(self):
+        """Seed achievement definitions."""
+        print(f"\n{Colors.BOLD}Step 19: Seeding Achievements ({len(ACHIEVEMENT_TEMPLATES)} achievements){Colors.RESET}")
+
+        for i, achievement_data in enumerate(ACHIEVEMENT_TEMPLATES):
+            # Optionally link to a badge
+            if self.badges and random.choice([True, False]):
+                matching_badges = [b for b in self.badges if b.get("category") == "time" or b.get("rarity") == "common"]
+                if matching_badges:
+                    achievement_data = {**achievement_data, "badge_id": random.choice(matching_badges).get("id")}
+
+            response = self._make_request(
+                "POST",
+                "/gamification/achievements",
+                entity_type="Achievement",
+                json=achievement_data,
+                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            )
+
+            if response and response.status_code in [200, 201]:
+                achievement = response.json()
+                self.achievements.append(achievement)
+                self.stats.record_created("Achievement")
+            elif response and response.status_code == 400:
+                # Achievement might already exist
+                pass
+            else:
+                status = response.status_code if response else None
+                self.stats.record_failed("Achievement", f"Failed to create achievement: {achievement_data['name']}", status)
+
+            self._log_progress("Achievements", i + 1, len(ACHIEVEMENT_TEMPLATES))
+
+        # Fetch all achievements to get their IDs
+        response = self._make_request(
+            "GET",
+            "/gamification/achievements?limit=100",
+            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+        )
+        if response and response.status_code == 200:
+            self.achievements = response.json()
+            print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.achievements)} achievements")
+
+    def seed_volunteer_badges(self):
+        """Award badges to volunteers."""
+        print(f"\n{Colors.BOLD}Step 20: Awarding Badges to Volunteers{Colors.RESET}")
+
+        if not self.volunteers or not self.badges:
+            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping badge awards (no volunteers or badges)")
+            return
+
+        awards_count = 0
+        common_badges = [b for b in self.badges if b.get("rarity") == "common"]
+        rare_badges = [b for b in self.badges if b.get("rarity") == "rare"]
+
+        for volunteer in self.volunteers:
+            volunteer_id = volunteer.get("id")
+            if not volunteer_id:
+                continue
+
+            # Award 1-3 common badges to each volunteer
+            num_badges = random.randint(1, min(3, len(common_badges)))
+            selected_badges = random.sample(common_badges, num_badges) if common_badges else []
+
+            # Some volunteers also get rare badges
+            if random.random() < 0.3 and rare_badges:
+                selected_badges.append(random.choice(rare_badges))
+
+            for badge in selected_badges:
+                badge_id = badge.get("id")
+                if not badge_id:
+                    continue
+
+                award_data = {
+                    "badge_id": badge_id,
+                    "earned_reason": f"Reconhecimento por {random.choice(['dedicação', 'contribuição', 'participação', 'esforço'])} em atividades ambientais"
+                }
+
+                response = self._make_request(
+                    "POST",
+                    f"/gamification/volunteers/{volunteer_id}/badges/award",
+                    json=award_data,
+                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                )
+
+                if response and response.status_code in [200, 201]:
+                    awards_count += 1
+                    self.stats.record_created("VolunteerBadge")
+
+        print(f"{Colors.GREEN}✓{Colors.RESET} Awarded {awards_count} badges to volunteers")
+        self.stats.assert_true(awards_count > 0, "At least one badge should be awarded")
+
+    def seed_volunteer_points(self):
+        """Award points to volunteers and create points history."""
+        print(f"\n{Colors.BOLD}Step 21: Awarding Points to Volunteers{Colors.RESET}")
+
+        if not self.volunteers:
+            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping points awards (no volunteers)")
+            return
+
+        points_count = 0
+        event_types = ["hours_logged", "task_completed", "project_completed", "achievement_earned", "manual_adjustment"]
+
+        for volunteer in self.volunteers:
+            volunteer_id = volunteer.get("id")
+            if not volunteer_id:
+                continue
+
+            # Award 3-8 points entries to each volunteer
+            num_awards = random.randint(3, 8)
+
+            for _ in range(num_awards):
+                points_data = {
+                    "points": random.randint(5, 100),
+                    "event_type": random.choice(event_types),
+                    "description": random.choice(POINTS_EVENT_DESCRIPTIONS),
+                    "reference_type": random.choice(["task", "project", "training", None])
+                }
+
+                # Add reference_id if reference_type is set
+                if points_data["reference_type"] == "task" and self.tasks:
+                    points_data["reference_id"] = random.choice(self.tasks).get("id")
+                elif points_data["reference_type"] == "project" and self.projects:
+                    points_data["reference_id"] = random.choice(self.projects).get("id")
+                else:
+                    points_data["reference_type"] = None
+
+                response = self._make_request(
+                    "POST",
+                    f"/gamification/volunteers/{volunteer_id}/points/award",
+                    json=points_data,
+                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                )
+
+                if response and response.status_code in [200, 201]:
+                    points_count += 1
+                    self.stats.record_created("PointsAward")
+
+            # Add delay to avoid rate limiting
+            if self.delay > 0:
+                time.sleep(self.delay)
+
+        print(f"{Colors.GREEN}✓{Colors.RESET} Created {points_count} points awards")
+        self.stats.assert_true(points_count > 0, "At least one points award should be created")
+
+    def seed_leaderboards(self):
+        """Generate leaderboards."""
+        print(f"\n{Colors.BOLD}Step 22: Generating Leaderboards{Colors.RESET}")
+
+        response = self._make_request(
+            "POST",
+            "/gamification/leaderboards/generate",
+            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+        )
+
+        if response and response.status_code == 200:
+            result = response.json()
+            print(f"{Colors.GREEN}✓{Colors.RESET} {result.get('message', 'Leaderboards generated')}")
+            self.stats.record_created("Leaderboard")
+        else:
+            status = response.status_code if response else None
+            self.stats.record_failed("Leaderboard", "Failed to generate leaderboards", status)
+
+    def validate_gamification(self):
+        """Validate gamification data."""
+        print(f"\n{Colors.BOLD}Step 23: Validating Gamification Data{Colors.RESET}")
+
+        # Validate volunteer points
+        if self.volunteers:
+            print(f"{Colors.CYAN}Validating Volunteer → Points relationship...{Colors.RESET}")
+            volunteer = self.volunteers[0]
+            volunteer_id = volunteer.get("id")
+            response = self._make_request(
+                "GET",
+                f"/gamification/volunteers/{volunteer_id}/points",
+                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            )
+            if response and response.status_code == 200:
+                data = response.json()
+                self.stats.assert_true("total_points" in data, "Volunteer should have points data")
+                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Points relationship validated")
+
+        # Validate volunteer badges
+        if self.volunteers:
+            print(f"{Colors.CYAN}Validating Volunteer → Badges relationship...{Colors.RESET}")
+            volunteer = self.volunteers[0]
+            volunteer_id = volunteer.get("id")
+            response = self._make_request(
+                "GET",
+                f"/gamification/volunteers/{volunteer_id}/badges",
+                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            )
+            if response and response.status_code == 200:
+                data = response.json()
+                self.stats.assert_true("badges" in data or isinstance(data, list), "Volunteer should have badges data")
+                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Badges relationship validated")
+
+        # Validate gamification stats (admin)
+        print(f"{Colors.CYAN}Validating Gamification Stats endpoint...{Colors.RESET}")
+        response = self._make_request(
+            "GET",
+            "/gamification/stats",
+            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+        )
+        if response and response.status_code == 200:
+            data = response.json()
+            self.stats.assert_true("total_badges" in data, "Stats should include total_badges")
+            self.stats.assert_true("total_achievements" in data, "Stats should include total_achievements")
+            print(f"{Colors.GREEN}✓{Colors.RESET} Gamification Stats endpoint validated")
+
+        # Validate volunteer gamification summary
+        if self.volunteers:
+            print(f"{Colors.CYAN}Validating Volunteer Gamification Summary...{Colors.RESET}")
+            volunteer = self.volunteers[0]
+            volunteer_id = volunteer.get("id")
+            response = self._make_request(
+                "GET",
+                f"/gamification/stats/volunteer/{volunteer_id}",
+                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            )
+            if response and response.status_code == 200:
+                data = response.json()
+                self.stats.assert_true("volunteer_id" in data, "Summary should include volunteer_id")
+                self.stats.assert_true("badges_earned" in data, "Summary should include badges_earned")
+                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer Gamification Summary validated")
+
+    def run(self, test_mode: bool = False):
+        """Execute the complete seeding process.
+
+        Args:
+            test_mode: If True, use minimal counts for quick testing
+        """
+        # Set counts based on mode
+        if test_mode:
+            print(f"{Colors.YELLOW}Running in TEST MODE with minimal data{Colors.RESET}\n")
+            user_count = 5
+            volunteer_count = 5
+            project_count = 3
+            task_count = 10
+            resource_count = 5
+            time_log_count = 10
+            notification_count = 5
+        else:
+            user_count = 50
+            volunteer_count = 40
+            project_count = 20
+            task_count = 80
+            resource_count = 30
+            time_log_count = 200
+            notification_count = 50
+
         try:
             self.authenticate_users()
-            self.seed_users(50)  # Reduced from 100
-            self.seed_volunteers(40)  # Reduced from 80
+            self.seed_users(user_count)
+            self.seed_volunteers(volunteer_count)
             self.seed_volunteer_skills(25)
             self.seed_volunteer_skill_assignments()
-            self.seed_projects(20)  # Reduced from 30
+            self.seed_projects(project_count)
             self.seed_project_teams()
             self.seed_milestones()
             self.seed_environmental_metrics()
-            self.seed_tasks(80)  # Reduced from 150
+            self.seed_tasks(task_count)
             self.seed_task_volunteers()
             self.seed_task_dependencies()
-            self.seed_resources(30)  # Reduced from 50
+            self.seed_resources(resource_count)
             self.seed_project_resources()
-            self.seed_volunteer_time_logs(200)  # Reduced from 500
-            self.seed_notifications(50)  # Reduced from 100
+            self.seed_volunteer_time_logs(time_log_count)
+            self.seed_notifications(notification_count)
             self.validate_relationships()
+
+            # Gamification seeding
+            self.seed_badges()
+            self.seed_achievements()
+            self.seed_volunteer_badges()
+            self.seed_volunteer_points()
+            self.seed_leaderboards()
+            self.validate_gamification()
+
+            # Save credentials to file
+            self.save_credentials()
 
             # Print summary and return exit code
             return self.stats.print_summary()
@@ -1323,6 +1703,37 @@ class DataSeeder:
             return 1
         finally:
             self.client.close()
+
+    def save_credentials(self):
+        """Save generated credentials to gen_creds.txt."""
+        if not self.credentials:
+            return
+
+        creds_file = Path(__file__).parent.parent / "gen_creds.txt"
+
+        print(f"\n{Colors.BOLD}Saving credentials to gen_creds.txt{Colors.RESET}")
+
+        with open(creds_file, "w") as f:
+            f.write("=" * 70 + "\n")
+            f.write("GENERATED CREDENTIALS - Repensar Seeding Script\n")
+            f.write(f"Generated at: {datetime.now().isoformat()}\n")
+            f.write("=" * 70 + "\n\n")
+
+            # Group by type
+            by_type = defaultdict(list)
+            for cred in self.credentials:
+                by_type[cred["type"]].append(cred)
+
+            for user_type, creds in by_type.items():
+                f.write(f"--- {user_type.upper()} ({len(creds)}) ---\n")
+                for cred in creds:
+                    f.write(f"  Name: {cred['name']}\n")
+                    f.write(f"  Email: {cred['email']}\n")
+                    f.write(f"  Password: {cred['password']}\n")
+                    f.write("\n")
+                f.write("\n")
+
+        print(f"{Colors.GREEN}✓{Colors.RESET} Saved {len(self.credentials)} credentials to {creds_file}")
 
 
 def main():
@@ -1351,6 +1762,11 @@ def main():
         default=0.1,
         help="Delay in seconds between requests (default: 0.1, increase if hitting rate limits)"
     )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run with minimal data for quick testing (5 users, 5 volunteers, 3 projects, etc.)"
+    )
 
     args = parser.parse_args()
 
@@ -1360,7 +1776,7 @@ def main():
         verbose=args.verbose,
         delay=args.delay
     )
-    exit_code = seeder.run()
+    exit_code = seeder.run(test_mode=args.test)
     sys.exit(exit_code)
 
 

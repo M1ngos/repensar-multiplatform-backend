@@ -469,7 +469,15 @@ def get_task_volunteers(
             user = data["user"]
             
             assignments.append(TaskVolunteerAssignment(
-                **assignment.model_dump(),
+                id=assignment.id,
+                task_id=assignment.task_id,
+                volunteer_id=assignment.volunteer_id,
+                assigned_at=assignment.assigned_at,
+                removed_at=assignment.removed_at,
+                is_active=assignment.is_active,
+                hours_contributed=float(assignment.hours_contributed),
+                performance_rating=assignment.performance_rating,
+                notes=assignment.notes,
                 volunteer_name=user.name,
                 volunteer_id_code=volunteer.volunteer_id,
                 volunteer_email=user.email
@@ -568,7 +576,15 @@ async def assign_volunteer_to_task(
             pass
 
         return TaskVolunteerAssignment(
-            **assignment.model_dump(),
+            id=assignment.id,
+            task_id=assignment.task_id,
+            volunteer_id=assignment.volunteer_id,
+            assigned_at=assignment.assigned_at,
+            removed_at=assignment.removed_at,
+            is_active=assignment.is_active,
+            hours_contributed=float(assignment.hours_contributed),
+            performance_rating=assignment.performance_rating,
+            notes=assignment.notes,
             volunteer_name=user.name,
             volunteer_id_code=volunteer.volunteer_id,
             volunteer_email=user.email
@@ -629,12 +645,20 @@ def update_volunteer_assignment(
         user = db.get(User, volunteer.user_id)
         
         return TaskVolunteerAssignment(
-            **assignment.model_dump(),
+            id=assignment.id,
+            task_id=assignment.task_id,
+            volunteer_id=assignment.volunteer_id,
+            assigned_at=assignment.assigned_at,
+            removed_at=assignment.removed_at,
+            is_active=assignment.is_active,
+            hours_contributed=float(assignment.hours_contributed),
+            performance_rating=assignment.performance_rating,
+            notes=assignment.notes,
             volunteer_name=user.name,
             volunteer_id_code=volunteer.volunteer_id,
             volunteer_email=user.email
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

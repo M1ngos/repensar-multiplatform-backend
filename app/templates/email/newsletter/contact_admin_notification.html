@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}New Contact Form Submission - Repensar{% endblock %}
+
+{% block header_title %}New Contact Submission{% endblock %}
+{% block header_subtitle %}A visitor has sent a message{% endblock %}
+
+{% block content %}
+<div style="text-align: left;">
+    <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+        Hi Admin,
+    </p>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        You have received a new contact form submission from the Repensar website. Please find the details below:
+    </p>
+
+    <!-- Submission Details -->
+    <div style="background-color: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin: 0 0 30px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+                <td style="padding: 0 0 16px 0; border-bottom: 1px solid #e5e5e5;">
+                    <p style="margin: 0 0 4px 0; color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">From</p>
+                    <p style="margin: 0; color: #333333; font-size: 16px; font-weight: 600;">{{ name }}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 16px 0; border-bottom: 1px solid #e5e5e5;">
+                    <p style="margin: 0 0 4px 0; color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Email</p>
+                    <p style="margin: 0;">
+                        <a href="mailto:{{ email }}" style="color: #5ABEA4; text-decoration: none; font-size: 16px;">{{ email }}</a>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 16px 0; border-bottom: 1px solid #e5e5e5;">
+                    <p style="margin: 0 0 4px 0; color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Submitted</p>
+                    <p style="margin: 0; color: #333333; font-size: 14px;">{{ submitted_at }}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 16px 0;">
+                    <p style="margin: 0 0 8px 0; color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Message</p>
+                    <div style="background-color: #ffffff; border-left: 4px solid #5ABEA4; padding: 16px; border-radius: 4px;">
+                        <p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.7; white-space: pre-wrap;">{{ message }}</p>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Quick Reply Button -->
+    <div style="text-align: center; margin: 0 0 30px 0;">
+        <a href="mailto:{{ email }}?subject=Re: Your message to Repensar"
+           style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #5ABEA4 0%, #4AA896 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(90, 190, 164, 0.3);">
+            Reply to {{ name }}
+        </a>
+    </div>
+
+    <!-- Technical Details -->
+    <div style="background-color: #f5f5f5; border-radius: 6px; padding: 16px; margin: 0 0 20px 0;">
+        <p style="margin: 0 0 8px 0; color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Technical Details</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 13px; color: #666666;">
+            <tr>
+                <td style="padding: 4px 0;"><strong>Submission ID:</strong></td>
+                <td style="padding: 4px 0;">#{{ submission_id }}</td>
+            </tr>
+            {% if ip_address %}
+            <tr>
+                <td style="padding: 4px 0;"><strong>IP Address:</strong></td>
+                <td style="padding: 4px 0;">{{ ip_address }}</td>
+            </tr>
+            {% endif %}
+            {% if user_agent %}
+            <tr>
+                <td style="padding: 4px 0;"><strong>User Agent:</strong></td>
+                <td style="padding: 4px 0; word-break: break-all;">{{ user_agent[:100] }}{% if user_agent|length > 100 %}...{% endif %}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+        You can also view and manage all contact submissions in the
+        <a href="{{ backend_url }}/admin/contacts" style="color: #5ABEA4; text-decoration: none;">admin dashboard</a>.
+    </p>
+</div>
+{% endblock %}

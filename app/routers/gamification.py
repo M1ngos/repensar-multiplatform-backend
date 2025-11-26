@@ -6,13 +6,15 @@ import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
-from sqlmodel import Session
+from sqlmodel import Session, select
+from sqlalchemy import func
 from typing import List, Optional
 from decimal import Decimal
 
 from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.models.volunteer import Volunteer
 from app.crud.gamification import (
     badge_crud,
     achievement_crud,
@@ -49,6 +51,7 @@ from app.schemas.gamification import (
     PointsAwardResponse,
     StreakInfo,
     GlobalRanking,
+    VolunteerPointsBase,
     # Leaderboard schemas
     Leaderboard,
     VolunteerLeaderboardPosition,
@@ -722,7 +725,7 @@ async def award_points_manually(
         )
 
     # Verify volunteer exists
-    volunteer = db.get(User, volunteer_id)
+    volunteer = db.get(Volunteer, volunteer_id)
     if not volunteer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
@@ -807,24 +810,26 @@ async def get_global_rankings(
 
     rankings = []
     for vp in top_volunteers:
-        volunteer = db.get(User, vp.volunteer_id)
+        volunteer = db.get(Volunteer, vp.volunteer_id)
         if volunteer:
-            badges_count = volunteer_badge_crud.count_volunteer_badges(db, vp.volunteer_id)
-            achievements_count = volunteer_achievement_crud.count_completed_achievements(
-                db, vp.volunteer_id
-            )
-
-            rankings.append(
-                GlobalRanking(
-                    rank=vp.rank or 0,
-                    volunteer_id=vp.volunteer_id,
-                    volunteer_name=volunteer.full_name,
-                    volunteer_avatar=volunteer.profile_picture_url,
-                    total_points=vp.total_points,
-                    badges_count=badges_count,
-                    achievements_count=achievements_count,
+            user = db.get(User, volunteer.user_id)
+            if user:
+                badges_count = volunteer_badge_crud.count_volunteer_badges(db, vp.volunteer_id)
+                achievements_count = volunteer_achievement_crud.count_completed_achievements(
+                    db, vp.volunteer_id
                 )
-            )
+
+                rankings.append(
+                    GlobalRanking(
+                        rank=vp.rank or 0,
+                        volunteer_id=vp.volunteer_id,
+                        volunteer_name=user.name,
+                        volunteer_avatar=user.profile_picture,
+                        total_points=vp.total_points,
+                        badges_count=badges_count,
+                        achievements_count=achievements_count,
+                    )
+                )
 
     return rankings
 
@@ -955,7 +960,7 @@ async def get_gamification_stats(
     total_achievements = achievement_crud.count_achievements(db, is_active=True)
 
     # Total points awarded
-    from app.models.gamification import PointsHistory
+    from app.models.gamification import PointsHistory, VolunteerBadge, VolunteerAchievement, VolunteerPoints
 
     statement = select(func.sum(PointsHistory.points_change)).where(
         PointsHistory.points_change > 0
@@ -1174,9 +1179,20 @@ async def get_volunteer_gamification_summary(
                     )
                 )
 
+    # Convert SQLModel to Pydantic schema
+    points_data = VolunteerPointsBase(
+        total_points=points_record.total_points,
+        current_points=points_record.current_points,
+        rank=points_record.rank,
+        rank_percentile=points_record.rank_percentile,
+        current_streak_days=points_record.current_streak_days,
+        longest_streak_days=points_record.longest_streak_days,
+        last_activity_date=points_record.last_activity_date,
+    )
+
     return VolunteerGamificationSummary(
         volunteer_id=volunteer_id,
-        points=points_record,
+        points=points_data,
         badges_earned=badges_earned,
         achievements_completed=achievements_completed,
         recent_badges=recent_badges,

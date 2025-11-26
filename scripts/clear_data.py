@@ -42,6 +42,10 @@ from app.models.resource import Resource, ProjectResource
 from app.models.analytics import Notification, ActivityLog
 from app.models.communication import Conversation, Message
 from app.models.blog import BlogPost, BlogPostTag, BlogPostCategory, Tag, Category
+from app.models.gamification import (
+    VolunteerBadge, VolunteerAchievement, VolunteerPoints, PointsHistory,
+    Leaderboard, Badge, Achievement
+)
 
 # ANSI color codes
 class Colors:
@@ -119,29 +123,38 @@ def clear_all_data(preserve_admin: bool = False):
         print(f"\n{Colors.BOLD}Phase 3: Activity Logs{Colors.RESET}")
         total_deleted += clear_table(session, ActivityLog, "Activity Logs")
 
-        print(f"\n{Colors.BOLD}Phase 4: Task Dependencies{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 4: Gamification{Colors.RESET}")
+        total_deleted += clear_table(session, PointsHistory, "Points History")
+        total_deleted += clear_table(session, VolunteerBadge, "Volunteer Badges")
+        total_deleted += clear_table(session, VolunteerAchievement, "Volunteer Achievements")
+        total_deleted += clear_table(session, VolunteerPoints, "Volunteer Points")
+        total_deleted += clear_table(session, Leaderboard, "Leaderboards")
+        total_deleted += clear_table(session, Achievement, "Achievements")
+        total_deleted += clear_table(session, Badge, "Badges")
+
+        print(f"\n{Colors.BOLD}Phase 5: Task Dependencies{Colors.RESET}")
         total_deleted += clear_table(session, TaskDependency, "Task Dependencies")
         total_deleted += clear_table(session, TaskVolunteer, "Task Volunteers")
 
-        print(f"\n{Colors.BOLD}Phase 5: Tasks{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 6: Tasks{Colors.RESET}")
         total_deleted += clear_table(session, Task, "Tasks")
 
-        print(f"\n{Colors.BOLD}Phase 6: Volunteer Data{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 7: Volunteer Data{Colors.RESET}")
         total_deleted += clear_table(session, VolunteerTimeLog, "Volunteer Time Logs")
         total_deleted += clear_table(session, VolunteerSkillAssignment, "Volunteer Skills")
         total_deleted += clear_table(session, Volunteer, "Volunteers")
 
-        print(f"\n{Colors.BOLD}Phase 7: Project Data{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 8: Project Data{Colors.RESET}")
         total_deleted += clear_table(session, ProjectResource, "Project Resources")
         total_deleted += clear_table(session, EnvironmentalMetric, "Environmental Metrics")
         total_deleted += clear_table(session, Milestone, "Project Milestones")
         total_deleted += clear_table(session, ProjectTeam, "Project Team Members")
         total_deleted += clear_table(session, Project, "Projects")
 
-        print(f"\n{Colors.BOLD}Phase 8: Resources{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 9: Resources{Colors.RESET}")
         total_deleted += clear_table(session, Resource, "Resources")
 
-        print(f"\n{Colors.BOLD}Phase 9: Users{Colors.RESET}")
+        print(f"\n{Colors.BOLD}Phase 10: Users{Colors.RESET}")
         if preserve_admin:
             # Preserve admin, manager, and staff test users
             test_emails = ['admin@repensar.org', 'manager@repensar.org', 'staff@repensar.org']

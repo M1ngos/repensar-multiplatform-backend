@@ -36,6 +36,10 @@ class BackgroundTaskManager:
         self.tasks.append(asyncio.create_task(self.cleanup_stale_sse_connections_task()))
         self.tasks.append(asyncio.create_task(self.update_leaderboards_task()))
 
+        # Newsletter campaign tasks
+        self.tasks.append(asyncio.create_task(self.process_scheduled_campaigns_task()))
+        self.tasks.append(asyncio.create_task(self.send_campaign_emails_task()))
+
         logger.info(f"Started {len(self.tasks)} background tasks")
 
     async def stop(self):
@@ -143,6 +147,89 @@ class BackgroundTaskManager:
                 logger.error(f"Error in leaderboard update task: {e}")
                 # Wait before retrying
                 await asyncio.sleep(60)
+
+    async def process_scheduled_campaigns_task(self):
+        """
+        Check for campaigns due to be sent and start sending.
+        Runs every minute.
+        """
+        while self._running:
+            try:
+                await asyncio.sleep(60)  # Check every minute
+
+                # Get a database session
+                db_gen = get_db()
+                db = next(db_gen)
+
+                try:
+                    from app.services.campaign_service import campaign_service
+
+                    # Get campaigns due to be sent
+                    due_campaigns = campaign_service.get_due_campaigns(db)
+
+                    for campaign in due_campaigns:
+                        # Start sending the campaign
+                        await campaign_service.send_campaign_now(db, campaign.id)
+                        logger.info(f"Started sending scheduled campaign {campaign.id}: {campaign.name}")
+                finally:
+                    try:
+                        next(db_gen)
+                    except StopIteration:
+                        pass
+
+            except asyncio.CancelledError:
+                logger.info("Scheduled campaigns task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in scheduled campaigns task: {e}")
+                await asyncio.sleep(60)
+
+    async def send_campaign_emails_task(self):
+        """
+        Process pending campaign recipients in batches.
+        Runs every 10 seconds when campaigns are sending.
+        """
+        while self._running:
+            try:
+                await asyncio.sleep(10)  # Check every 10 seconds
+
+                # Get a database session
+                db_gen = get_db()
+                db = next(db_gen)
+
+                try:
+                    from app.services.campaign_service import campaign_service
+                    from app.core.config import settings
+
+                    # Get campaigns that are currently sending
+                    sending_campaigns = campaign_service.get_sending_campaigns(db)
+
+                    for campaign in sending_campaigns:
+                        # Process a batch of emails
+                        sent, remaining = await campaign_service.process_campaign_batch(
+                            db,
+                            campaign.id,
+                            batch_size=settings.CAMPAIGN_BATCH_SIZE,
+                            delay_seconds=settings.CAMPAIGN_BATCH_DELAY_SECONDS
+                        )
+
+                        if sent > 0:
+                            logger.info(f"Campaign {campaign.id}: sent {sent} emails, {remaining} remaining")
+
+                        if remaining == 0:
+                            logger.info(f"Campaign {campaign.id} sending complete")
+                finally:
+                    try:
+                        next(db_gen)
+                    except StopIteration:
+                        pass
+
+            except asyncio.CancelledError:
+                logger.info("Campaign sending task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in campaign sending task: {e}")
+                await asyncio.sleep(30)
 
 
 # Global background task manager instance

@@ -5,7 +5,7 @@ import logging
 
 # Database migrations are managed exclusively via Alembic
 # from app.database.engine import create_db_and_tables
-from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search, blog, gamification
+from app.routers import auth, volunteers, projects, tasks, resources, reports, auth_enhanced, sync, analytics, users, notifications, files, search, blog, gamification, newsletter
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
 from app.core.config import settings
@@ -175,6 +175,7 @@ app.include_router(resources.router)
 app.include_router(reports.router)
 app.include_router(analytics.router)      # Analytics: /analytics/* (time-series & dashboards)
 app.include_router(gamification.router)   # Gamification: /gamification/* (badges, achievements, points, leaderboards)
+app.include_router(newsletter.router)     # Newsletter: /contact, /newsletter/* (subscriptions, campaigns)
 
 @app.get("/")
 def read_root():

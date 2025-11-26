@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Thank You for Contacting Us - Repensar{% endblock %}
+
+{% block header_title %}Message Received{% endblock %}
+{% block header_subtitle %}Thank you for reaching out{% endblock %}
+
+{% block content %}
+<div style="text-align: left;">
+    <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+        Hi <strong style="color: #5ABEA4;">{{ name }}</strong>,
+    </p>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        Thank you for contacting Repensar! We have received your message and appreciate you taking the time to reach out to us.
+    </p>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        Our team will review your message and get back to you as soon as possible, typically within <strong>1-2 business days</strong>.
+    </p>
+
+    <!-- Message Copy -->
+    <div style="background-color: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 0 0 30px 0;">
+        <p style="margin: 0 0 12px 0; color: #333333; font-size: 14px; font-weight: 600;">
+            Your message:
+        </p>
+        <div style="background-color: #ffffff; border-left: 4px solid #5ABEA4; padding: 16px; border-radius: 4px;">
+            <p style="margin: 0; color: #555555; font-size: 14px; line-height: 1.7; white-space: pre-wrap;">{{ message }}</p>
+        </div>
+    </div>
+
+    <div style="background-color: #E8F5F1; border-left: 4px solid #5ABEA4; padding: 16px; margin: 0 0 20px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #2E7D6B; font-size: 14px; line-height: 1.6;">
+            <strong>Reference Number:</strong> #{{ submission_id }}<br>
+            <strong>Submitted:</strong> {{ submitted_at }}
+        </p>
+    </div>
+
+    <p style="margin: 0 0 15px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        <strong>While you wait, you might be interested in:</strong>
+    </p>
+    <ul style="margin: 0 0 20px 0; padding-left: 20px; color: #555555; font-size: 14px; line-height: 1.8;">
+        <li>Exploring our current <a href="{{ frontend_url }}/projects" style="color: #5ABEA4; text-decoration: none;">volunteer projects</a></li>
+        <li>Learning more <a href="{{ frontend_url }}/about" style="color: #5ABEA4; text-decoration: none;">about our mission</a></li>
+        <li>Following us on social media for updates</li>
+    </ul>
+
+    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+        If your matter is urgent, please don't hesitate to reply to this email or contact us directly at
+        <a href="mailto:support@repensar.com" style="color: #5ABEA4; text-decoration: none;">support@repensar.com</a>.
+    </p>
+</div>
+{% endblock %}

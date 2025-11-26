@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}You've Been Unsubscribed - Repensar{% endblock %}
+
+{% block header_title %}Unsubscribed{% endblock %}
+{% block header_subtitle %}We're sorry to see you go{% endblock %}
+
+{% block content %}
+<div style="text-align: left;">
+    <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+        Hello,
+    </p>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        You have been successfully unsubscribed from the Repensar newsletter.
+    </p>
+
+    <div style="background-color: #E8F5F1; border-left: 4px solid #5ABEA4; padding: 16px; margin: 0 0 30px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #2E7D6B; font-size: 14px; line-height: 1.6;">
+            <strong>Email:</strong> {{ email }}<br>
+            <strong>Date:</strong> {{ unsubscribed_at }}
+        </p>
+    </div>
+
+    <p style="margin: 0 0 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        You will no longer receive promotional emails from us. However, you may still receive important transactional emails related to your account (if you have one).
+    </p>
+
+    <p style="margin: 0 0 30px 0; color: #555555; font-size: 15px; line-height: 1.7;">
+        <strong>Changed your mind?</strong> We'd love to have you back! You can re-subscribe at any time:
+    </p>
+
+    <!-- Re-subscribe Button -->
+    <div style="text-align: center; margin: 0 0 30px 0;">
+        <a href="{{ resubscribe_url }}"
+           style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #5ABEA4 0%, #4AA896 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(90, 190, 164, 0.3);">
+            Re-subscribe
+        </a>
+    </div>
+
+    <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 0 0 20px 0;">
+        <p style="margin: 0 0 12px 0; color: #333333; font-size: 14px; font-weight: 600;">
+            We'd love your feedback
+        </p>
+        <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+            If you have a moment, please let us know why you unsubscribed. Your feedback helps us improve our communications:
+        </p>
+        <ul style="margin: 15px 0 0 0; padding-left: 20px; color: #666666; font-size: 13px; line-height: 1.8;">
+            <li>Too many emails</li>
+            <li>Content wasn't relevant</li>
+            <li>I signed up by mistake</li>
+            <li>Other reasons</li>
+        </ul>
+        <p style="margin: 15px 0 0 0;">
+            <a href="mailto:feedback@repensar.com?subject=Newsletter Feedback" style="color: #5ABEA4; text-decoration: none; font-size: 13px;">
+                Send us feedback
+            </a>
+        </p>
+    </div>
+
+    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+        Thank you for being part of the Repensar community. We wish you all the best!
+    </p>
+</div>
+{% endblock %}

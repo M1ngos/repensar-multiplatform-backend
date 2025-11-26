@@ -24,6 +24,7 @@ from app.models.gamification import (
     VolunteerAchievement,
 )
 from app.models.user import User
+from app.models.volunteer import Volunteer
 from app.services.event_bus import EventType, get_event_bus
 from app.services.notification_service import NotificationService
 from app.models.analytics import NotificationType
@@ -197,17 +198,20 @@ class GamificationService:
         except Exception as e:
             logger.error(f"Failed to publish badge earned event: {e}")
 
+        # TODO: Re-enable notifications after verification
         # Send notification
-        try:
-            await NotificationService.create_notification(
-                db=db,
-                user_id=volunteer_id,
-                title=f"Badge Earned: {badge.name}",
-                message=f"Congratulations! You've earned the '{badge.name}' badge and {badge.points_value} points!",
-                notification_type=NotificationType.achievement,
-            )
-        except Exception as e:
-            logger.error(f"Failed to send badge notification: {e}")
+        # try:
+        #     volunteer = db.get(Volunteer, volunteer_id)
+        #     if volunteer:
+        #         await NotificationService.create_notification(
+        #             db=db,
+        #             user_id=volunteer.user_id,
+        #             title=f"Badge Earned: {badge.name}",
+        #             message=f"Congratulations! You've earned the '{badge.name}' badge and {badge.points_value} points!",
+        #             notification_type=NotificationType.achievement,
+        #         )
+        # except Exception as e:
+        #     logger.error(f"Failed to send badge notification: {e}")
 
         return {
             "status": "awarded",
@@ -283,12 +287,12 @@ class GamificationService:
                 # Get total hours from time logs
                 # This would need integration with time tracking module
                 # For now, we'll use a placeholder
-                from app.models.time_tracking import TimeLog
+                from app.models.volunteer import VolunteerTimeLog
 
                 statement = (
-                    select(func.sum(TimeLog.hours))
-                    .where(TimeLog.volunteer_id == volunteer_id)
-                    .where(TimeLog.status == "approved")
+                    select(func.sum(VolunteerTimeLog.hours))
+                    .where(VolunteerTimeLog.volunteer_id == volunteer_id)
+                    .where(VolunteerTimeLog.approved == True)
                 )
                 result = db.exec(statement).first()
                 return Decimal(str(result or 0))
@@ -296,12 +300,12 @@ class GamificationService:
             elif achievement_type == "projects_completed":
                 # Get completed projects count
                 # This would need integration with project module
-                from app.models.project import ProjectMember
+                from app.models.project import ProjectTeam
 
                 statement = (
-                    select(func.count(ProjectMember.id))
-                    .where(ProjectMember.user_id == volunteer_id)
-                    .where(ProjectMember.role.in_(["member", "lead"]))
+                    select(func.count(ProjectTeam.id))
+                    .where(ProjectTeam.user_id == volunteer_id)
+                    .where(ProjectTeam.is_active == True)
                 )
                 result = db.exec(statement).first()
                 return Decimal(str(result or 0))
@@ -309,7 +313,7 @@ class GamificationService:
             elif achievement_type == "tasks_completed":
                 # Get completed tasks count
                 # This would need integration with task module
-                from app.models.tasks import Task
+                from app.models.task import Task
 
                 statement = (
                     select(func.count(Task.id))
@@ -321,12 +325,12 @@ class GamificationService:
 
             elif achievement_type == "skills_acquired":
                 # Get certified skills count
-                from app.models.skill import VolunteerSkill
+                from app.models.volunteer import VolunteerSkillAssignment
 
                 statement = (
-                    select(func.count(VolunteerSkill.id))
-                    .where(VolunteerSkill.user_id == volunteer_id)
-                    .where(VolunteerSkill.is_certified == True)
+                    select(func.count(VolunteerSkillAssignment.id))
+                    .where(VolunteerSkillAssignment.volunteer_id == volunteer_id)
+                    .where(VolunteerSkillAssignment.certified == True)
                 )
                 result = db.exec(statement).first()
                 return Decimal(str(result or 0))
@@ -403,17 +407,20 @@ class GamificationService:
         except Exception as e:
             logger.error(f"Failed to publish achievement completed event: {e}")
 
+        # TODO: Re-enable notifications after verification
         # Send notification
-        try:
-            await NotificationService.create_notification(
-                db=db,
-                user_id=volunteer_id,
-                title=f"Achievement Unlocked: {achievement.name}",
-                message=f"Congratulations! You've completed '{achievement.name}' and earned {achievement.points_reward} points!",
-                notification_type=NotificationType.achievement,
-            )
-        except Exception as e:
-            logger.error(f"Failed to send achievement notification: {e}")
+        # try:
+        #     volunteer = db.get(Volunteer, volunteer_id)
+        #     if volunteer:
+        #         await NotificationService.create_notification(
+        #             db=db,
+        #             user_id=volunteer.user_id,
+        #             title=f"Achievement Unlocked: {achievement.name}",
+        #             message=f"Congratulations! You've completed '{achievement.name}' and earned {achievement.points_reward} points!",
+        #             notification_type=NotificationType.achievement,
+        #         )
+        # except Exception as e:
+        #     logger.error(f"Failed to send achievement notification: {e}")
 
     # ========================================
     # LEADERBOARD MANAGEMENT
@@ -438,18 +445,20 @@ class GamificationService:
             rankings = []
 
             for rank, vp in enumerate(volunteers_points, start=1):
-                # Get volunteer info
-                volunteer = db.get(User, vp.volunteer_id)
+                # Get volunteer info - need to get Volunteer then User
+                volunteer = db.get(Volunteer, vp.volunteer_id)
                 if volunteer:
-                    rankings.append(
-                        {
-                            "volunteer_id": vp.volunteer_id,
-                            "rank": rank,
-                            "value": vp.total_points,
-                            "volunteer_name": volunteer.full_name,
-                            "volunteer_avatar": volunteer.profile_picture_url,
-                        }
-                    )
+                    user = db.get(User, volunteer.user_id)
+                    if user:
+                        rankings.append(
+                            {
+                                "volunteer_id": vp.volunteer_id,
+                                "rank": rank,
+                                "value": vp.total_points,
+                                "volunteer_name": user.name,
+                                "volunteer_avatar": user.profile_picture,
+                            }
+                        )
 
         else:
             # For weekly/monthly, aggregate from points history
@@ -471,17 +480,19 @@ class GamificationService:
             rankings = []
 
             for rank, result in enumerate(results, start=1):
-                volunteer = db.get(User, result[0])
+                volunteer = db.get(Volunteer, result[0])
                 if volunteer:
-                    rankings.append(
-                        {
-                            "volunteer_id": result[0],
-                            "rank": rank,
-                            "value": int(result[1]),
-                            "volunteer_name": volunteer.full_name,
-                            "volunteer_avatar": volunteer.profile_picture_url,
-                        }
-                    )
+                    user = db.get(User, volunteer.user_id)
+                    if user:
+                        rankings.append(
+                            {
+                                "volunteer_id": result[0],
+                                "rank": rank,
+                                "value": int(result[1]),
+                                "volunteer_name": user.name,
+                                "volunteer_avatar": user.profile_picture,
+                            }
+                        )
 
         # Calculate statistics
         total_participants = len(rankings)
@@ -521,24 +532,24 @@ class GamificationService:
         period_start, period_end = GamificationService._get_timeframe_dates(timeframe)
 
         try:
-            from app.models.time_tracking import TimeLog
+            from app.models.volunteer import VolunteerTimeLog
 
             statement = (
                 select(
-                    TimeLog.volunteer_id,
-                    func.sum(TimeLog.hours).label("total_hours"),
+                    VolunteerTimeLog.volunteer_id,
+                    func.sum(VolunteerTimeLog.hours).label("total_hours"),
                 )
-                .where(TimeLog.status == "approved")
+                .where(VolunteerTimeLog.approved == True)
             )
 
             if period_start and period_end:
-                statement = statement.where(TimeLog.date >= period_start.date()).where(
-                    TimeLog.date <= period_end.date()
+                statement = statement.where(VolunteerTimeLog.date >= period_start.date()).where(
+                    VolunteerTimeLog.date <= period_end.date()
                 )
 
             statement = (
-                statement.group_by(TimeLog.volunteer_id)
-                .order_by(func.sum(TimeLog.hours).desc())
+                statement.group_by(VolunteerTimeLog.volunteer_id)
+                .order_by(func.sum(VolunteerTimeLog.hours).desc())
                 .limit(100)
             )
 
@@ -546,17 +557,19 @@ class GamificationService:
             rankings = []
 
             for rank, result in enumerate(results, start=1):
-                volunteer = db.get(User, result[0])
+                volunteer = db.get(Volunteer, result[0])
                 if volunteer:
-                    rankings.append(
-                        {
-                            "volunteer_id": result[0],
-                            "rank": rank,
-                            "value": float(result[1]),
-                            "volunteer_name": volunteer.full_name,
-                            "volunteer_avatar": volunteer.profile_picture_url,
-                        }
-                    )
+                    user = db.get(User, volunteer.user_id)
+                    if user:
+                        rankings.append(
+                            {
+                                "volunteer_id": result[0],
+                                "rank": rank,
+                                "value": float(result[1]),
+                                "volunteer_name": user.name,
+                                "volunteer_avatar": user.profile_picture,
+                            }
+                        )
 
             total_participants = len(rankings)
             values = [r["value"] for r in rankings]
@@ -609,23 +622,24 @@ class GamificationService:
         period_start, period_end = GamificationService._get_timeframe_dates(timeframe)
 
         try:
-            from app.models.project import ProjectMember
+            from app.models.project import ProjectTeam
 
             statement = (
                 select(
-                    ProjectMember.user_id,
-                    func.count(ProjectMember.project_id).label("total_projects"),
+                    ProjectTeam.user_id,
+                    func.count(ProjectTeam.project_id).label("total_projects"),
                 )
+                .where(ProjectTeam.is_active == True)
             )
 
             if period_start and period_end:
                 statement = statement.where(
-                    ProjectMember.created_at >= period_start
-                ).where(ProjectMember.created_at <= period_end)
+                    ProjectTeam.assigned_at >= period_start
+                ).where(ProjectTeam.assigned_at <= period_end)
 
             statement = (
-                statement.group_by(ProjectMember.user_id)
-                .order_by(func.count(ProjectMember.project_id).desc())
+                statement.group_by(ProjectTeam.user_id)
+                .order_by(func.count(ProjectTeam.project_id).desc())
                 .limit(100)
             )
 
@@ -633,17 +647,19 @@ class GamificationService:
             rankings = []
 
             for rank, result in enumerate(results, start=1):
-                volunteer = db.get(User, result[0])
+                volunteer = db.get(Volunteer, result[0])
                 if volunteer:
-                    rankings.append(
-                        {
-                            "volunteer_id": result[0],
-                            "rank": rank,
-                            "value": int(result[1]),
-                            "volunteer_name": volunteer.full_name,
-                            "volunteer_avatar": volunteer.profile_picture_url,
-                        }
-                    )
+                    user = db.get(User, volunteer.user_id)
+                    if user:
+                        rankings.append(
+                            {
+                                "volunteer_id": result[0],
+                                "rank": rank,
+                                "value": int(result[1]),
+                                "volunteer_name": user.name,
+                                "volunteer_avatar": user.profile_picture,
+                            }
+                        )
 
             total_participants = len(rankings)
             values = [r["value"] for r in rankings]

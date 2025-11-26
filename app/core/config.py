@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
 
+    # Newsletter Configuration
+    NEWSLETTER_FROM_EMAIL: Optional[str] = None  # Falls back to EMAIL_FROM
+    NEWSLETTER_FROM_NAME: str = "Repensar Newsletter"
+    ADMIN_NOTIFICATION_EMAIL: Optional[str] = None  # Email for contact form notifications
+    CAMPAIGN_BATCH_SIZE: int = 50  # Emails to send per batch
+    CAMPAIGN_BATCH_DELAY_SECONDS: float = 1.0  # Delay between emails (rate limiting)
+    SUBSCRIPTION_CONFIRM_HOURS: int = 24  # Hours until confirmation link expires
+
     # Google OAuth
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
