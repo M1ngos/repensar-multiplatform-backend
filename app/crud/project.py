@@ -1,5 +1,5 @@
 # app/crud/project.py
-from sqlmodel import Session, select, func, and_, or_
+from sqlmodel import Session, select, func, and_, or_, text
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 
@@ -154,9 +154,9 @@ class ProjectCRUD:
     
     def get_project_dashboard_data(self, db: Session, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
         """Get dashboard data for projects."""
-        query = """
-        SELECT 
-            p.id, p.name, p.status, p.category, p.start_date, p.end_date, 
+        query = text("""
+        SELECT
+            p.id, p.name, p.status, p.category, p.start_date, p.end_date,
             p.budget, p.actual_cost,
             COUNT(DISTINCT pt.user_id) as team_size,
             COUNT(DISTINCT CASE WHEN pt.is_volunteer THEN pt.user_id END) as volunteers_count,
@@ -170,10 +170,10 @@ class ProjectCRUD:
         GROUP BY p.id, p.name, p.status, p.category, p.start_date, p.end_date, p.budget, p.actual_cost
         ORDER BY p.created_at DESC
         OFFSET :skip LIMIT :limit
-        """
-        
-        result = db.exec(query, {"skip": skip, "limit": limit})
-        return [dict(row) for row in result]
+        """)
+
+        result = db.execute(query, {"skip": skip, "limit": limit})
+        return [dict(row._mapping) for row in result]
     
     def get_project_stats(self, db: Session) -> Dict[str, Any]:
         """Get project statistics."""
