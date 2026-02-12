@@ -9,7 +9,7 @@ Quick reference for QA testing. Each section lists actions and expected results.
 ### Register
 | Action | Verify |
 |--------|--------|
-| POST `/auth/register` with valid data | 201, user created, verification email sent |
+| POST `/auth/register` with valid data | 201, user created, verification email sent | ✅
 | Register with existing email | 400 error "Email already registered" |
 | Register with invalid email format | 422 validation error |
 | Register with weak password | 400 error about password requirements |
