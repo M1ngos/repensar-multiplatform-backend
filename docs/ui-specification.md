@@ -2646,25 +2646,152 @@ toast({
 
 ---
 
-## Testing Checklist
+## Detailed Manual Test Plan (Minimal Batch)
 
-### Per Page
-- [ ] API calls load data correctly
-- [ ] Filters work as expected
-- [ ] Pagination functions properly
-- [ ] Empty states display when no data
-- [ ] Loading states show during fetches
-- [ ] Error handling displays appropriately
-- [ ] Forms validate input
-- [ ] Success/error toasts appear
-- [ ] Mobile responsive layout
-- [ ] Keyboard navigation works
+This plan validates all UI features in this specification with the smallest practical set of users and interactions.
 
-### Per Role
-- [ ] Only authorized pages visible in sidebar
-- [ ] API calls scoped to user's access level
-- [ ] Actions restricted based on permissions
-- [ ] Data filtered to user's scope
+### 1) Test Objective
+- Validate end-to-end behavior for Volunteer, Project Manager, Staff Member, and Admin.
+- Validate role permissions (allowed actions and blocked actions).
+- Validate cross-role workflows (project creation, task assignment, hour logging, time approval, achievements).
+- Validate admin-only modules (users, blog, newsletter, badges).
+
+### 2) Minimal Test Accounts
+
+| Key | Role | Purpose |
+|-----|------|---------|
+| `A1` | Admin | Bootstrap data, manage users, run admin modules |
+| `PM1` | Project Manager | Own and manage one project |
+| `S1` | Staff Member | Volunteer operations + time approval + points/badges |
+| `V1` | Volunteer | Primary volunteer journey |
+| `V2` | Volunteer | Secondary volunteer for leaderboard and assignment coverage |
+
+### 3) Minimal Shared Dataset
+- `Project P1` (owned by `PM1`): active, has team `V1`, `V2`, `S1`.
+- `Project P2` (owned by `A1`): active, no volunteer assigned initially (used for permission and visibility checks).
+- Tasks in `P1`:
+1. `T1` open task (available for signup)
+2. `T2` assigned task (`V1`)
+3. `T3` completed task (`V2`)
+- One pending time log from `V1` on `T2` (for approval flow).
+- One approved time log from `V2` (for analytics/leaderboard comparison).
+- 1 blog category, 1 tag, 1 draft post, 1 published post.
+- Newsletter: 1 confirmed subscriber, 1 draft campaign.
+- Gamification: 1 active badge; `V1` and `V2` have different point totals.
+
+### 4) Execution Order (End-to-End)
+
+#### Phase A - Admin Bootstrap (`A1`)
+1. Create users `PM1`, `S1`, `V1`, `V2` in Users Management.
+2. Create `P1` and `P2`; assign `PM1` as manager of `P1`.
+3. Add team members to `P1`: `S1`, `V1`, `V2`.
+4. Create `T1`, `T2`, `T3` in `P1` with statuses open/in-progress/completed.
+5. Seed initial time logs (or create through volunteer flow, then return to admin checks).
+6. Create blog category/tag + draft + published post.
+7. Create newsletter template/campaign draft + ensure one confirmed subscriber.
+8. Create one badge for gamification checks.
+
+Expected:
+- Entities appear in corresponding lists with correct counts.
+- All created entities visible in admin dashboard KPIs.
+
+#### Phase B - Volunteer Journey (`V1`)
+1. Verify volunteer sidebar shows only volunteer pages.
+2. Dashboard: check stats, current tasks, recent achievements, hours chart render.
+3. My Tasks: filter by status/priority/project; open task details; update own assigned task status.
+4. Available Tasks: view `T1`, sign up, verify it moves to My Tasks and no longer shows as available.
+5. My Hours: log new hours against `P1`/`T2` with valid form data; verify new row as `pending`.
+6. Edit pending log (if UI allows) and confirm updated value.
+7. My Achievements: verify points summary, earned badges list, timeline entries.
+8. Leaderboards: validate points/hours/projects tabs and ranking placement relative to `V2`.
+
+Expected:
+- Volunteer can only operate on own assignments/logs.
+- New time log enters approval queue.
+- UI state transitions are immediate and consistent after actions.
+
+#### Phase C - Project Manager Journey (`PM1`)
+1. Verify PM sidebar and dashboard cards (active projects, tasks, approvals).
+2. My Projects: open `P1`, validate details, team list, progress indicators.
+3. Edit `P1` metadata and confirm persistence.
+4. Create or update one task in `P1`; assign/reassign `V1` or `V2`.
+5. Open Time Approvals and approve pending log from `V1`.
+6. Confirm approved entry disappears from pending queue and appears in approved/history views.
+
+Expected:
+- PM actions are limited to owned project (`P1`), not `P2`.
+- Approval updates volunteer and dashboard metrics.
+
+#### Phase D - Staff Journey (`S1`)
+1. Volunteers Management: search/filter volunteers; open `V1` profile; update one editable field.
+2. Time Approvals: create one new pending log as `V1` (if needed), approve or reject as staff.
+3. Award points or badge to `V1`; verify reflected in achievements/leaderboard.
+4. Validate staff can view operational lists but cannot access admin-only modules.
+
+Expected:
+- Staff can manage volunteer operational workflows.
+- Staff cannot create projects or access users/blog/newsletter admin screens.
+
+#### Phase E - Admin Module Validation (`A1`)
+1. Admin Dashboard: verify global KPIs changed after prior actions.
+2. Users Management: update role/status (activate/deactivate) for one non-critical test user.
+3. Blog Management:
+   - create/edit/delete draft post
+   - publish post
+   - verify published list and public visibility behavior
+4. Newsletter Management:
+   - review subscribers list
+   - create/edit campaign
+   - send test campaign (or trigger send-now in staging)
+   - verify campaign status progression
+5. Badges Management:
+   - create/update/archive badge
+   - award badge manually
+   - verify it appears in volunteer achievements
+
+Expected:
+- Admin-only features are accessible and fully functional.
+- Content states transition correctly (draft -> published, campaign draft -> sent).
+
+### 5) Interaction Coverage Matrix
+
+| Feature Group | Minimum Interactions Required |
+|---------------|-------------------------------|
+| Authentication/Session | Login/logout once per role; refresh token once |
+| Role Navigation | Verify sidebar visibility once per role |
+| Dashboard | Open each role dashboard and validate KPI consistency |
+| Projects | Create, edit, assign team, view details, PM scope check |
+| Tasks | Create, assign, volunteer signup, status update, filter/search |
+| Hours/Approvals | Log hour (`V1`), approve (`PM1`), approve/reject (`S1`) |
+| Volunteers | Staff edits volunteer profile and checks directory filters |
+| Gamification | Award points/badge and verify achievements + leaderboard |
+| Users (Admin) | Create role users, deactivate/reactivate one user |
+| Blog (Admin) | Category/tag setup, draft create/edit, publish, delete |
+| Newsletter (Admin/Public) | Subscribe/confirm, create campaign, send-now |
+| Common UI Quality | Empty/loading/error/form validation/mobile for each key page |
+
+### 6) Permission and Security Checks (Mandatory)
+
+Run these negative tests during the same session:
+1. `V1` attempts to access admin URL directly -> blocked/redirected.
+2. `S1` attempts to create project -> blocked.
+3. `PM1` attempts to edit `P2` (not owned) -> blocked.
+4. `V2` attempts to edit `V1` time log -> blocked.
+5. Hidden nav items must remain hidden even after hard refresh.
+
+### 7) Page-Level Quality Checklist (Apply to Each Tested Screen)
+- [ ] Data loads from expected APIs.
+- [ ] Loading, empty, and error states are visible and correct.
+- [ ] Filters/sorting/pagination update results correctly.
+- [ ] Form validation messages and success/error toasts appear correctly.
+- [ ] Mobile layout and keyboard accessibility are acceptable.
+- [ ] State is consistent after refresh (no stale or duplicated records).
+
+### 8) Exit Criteria
+- All steps in Phases A-E pass.
+- All permission negative tests pass.
+- No severity-1 or severity-2 defects remain open.
+- Any lower-severity defects are logged with reproducible steps and owner.
 
 ---
 
