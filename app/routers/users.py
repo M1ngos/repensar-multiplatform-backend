@@ -7,10 +7,13 @@ from typing import Optional
 
 from app.database.engine import get_db
 from app.core.deps import get_current_user
-from app.models.user import User
+from app.models.user import User, UserType
 from app.crud.user import user_crud
+from app.crud.volunteer import volunteer_crud
 from app.schemas.user import UserSummary, UserDetail, UserUpdate, UserTypeResponse
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
+from app.schemas.volunteer import VolunteerCreate
+from datetime import date
 
 router = APIRouter(
     prefix="/users",
@@ -47,8 +50,8 @@ def get_users(
     - **page_size**: Number of items per page (max 100)
     """
     try:
-        # Check permissions - only admin and staff can list all users
-        if current_user.user_type.name not in ["admin", "staff_member"]:
+        # Check permissions - allow roles that manage assignments
+        if current_user.user_type.name not in ["admin", "staff_member", "project_manager"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to list users"
@@ -319,6 +322,110 @@ def activate_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to activate user: {str(e)}"
+        )
+
+
+# ========================================
+# ROLE MANAGEMENT
+# ========================================
+
+@router.put("/{user_id}/role", response_model=UserDetail)
+def change_user_role(
+    user_id: int,
+    user_type_name: str = Query(..., description="New role name (e.g. admin, staff_member, project_manager, volunteer)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Change a user's role. Admin only. Automatically manages the volunteer profile."""
+    try:
+        if current_user.user_type.name != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to change user roles"
+            )
+
+        if current_user.id == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change your own role"
+            )
+
+        user = user_crud.get_user(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Resolve new user type
+        from sqlmodel import select
+        new_user_type = db.exec(select(UserType).where(UserType.name == user_type_name)).first()
+        if not new_user_type:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role: {user_type_name}"
+            )
+
+        old_type_name = user.user_type.name
+
+        # Update user type
+        user.user_type_id = new_user_type.id
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Handle volunteer profile side effects
+        if old_type_name == "volunteer" and user_type_name != "volunteer":
+            # Deactivate existing volunteer profile
+            volunteer = volunteer_crud.get_volunteer_by_user_id(db, user_id)
+            if volunteer:
+                volunteer.volunteer_status = "inactive"
+                db.add(volunteer)
+                db.commit()
+
+        elif user_type_name == "volunteer" and old_type_name != "volunteer":
+            # Reactivate or create volunteer profile
+            volunteer = volunteer_crud.get_volunteer_by_user_id(db, user_id)
+            if volunteer:
+                volunteer.volunteer_status = "active"
+                db.add(volunteer)
+                db.commit()
+            else:
+                volunteer_count = len(volunteer_crud.get_volunteers(db))
+                volunteer_data = VolunteerCreate(
+                    user_id=user_id,
+                    volunteer_id=f"VLT{volunteer_count + 1:03d}",
+                    joined_date=date.today()
+                )
+                volunteer_crud.create_volunteer(db, volunteer_data)
+
+        return UserDetail(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            phone=user.phone,
+            department=user.department,
+            employee_id=user.employee_id,
+            is_active=user.is_active,
+            is_email_verified=user.is_email_verified,
+            profile_picture=user.profile_picture,
+            last_login=user.last_login,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            user_type=UserTypeResponse(
+                id=user.user_type.id,
+                name=user.user_type.name,
+                description=user.user_type.description
+            ),
+            oauth_provider=user.oauth_provider
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to change user role: {str(e)}"
         )
 
 

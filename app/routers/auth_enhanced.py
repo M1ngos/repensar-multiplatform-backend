@@ -4,7 +4,7 @@ Enhanced authentication routes with production-grade JWT token management.
 This file demonstrates the integration of all security features.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from sqlmodel import Session, select
 from typing import Dict, Any, Optional
@@ -37,6 +37,8 @@ from app.core.oauth import (
     get_google_user_info, validate_google_oauth_config
 )
 from app.models.user import User, UserType
+from app.crud.volunteer import volunteer_crud
+from app.schemas.volunteer import VolunteerCreate
 from app.schemas.auth import (
     LoginRequest, RegisterRequest, Token, RefreshTokenRequest,
     UserProfile, PasswordResetRequest, PasswordReset, ChangePassword,
@@ -45,6 +47,15 @@ from app.schemas.auth import (
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
+
+
+def _as_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalize mixed naive/aware datetimes to UTC-aware for safe comparisons."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 @router.post("/login", response_model=Token)
@@ -232,9 +243,9 @@ async def refresh_token(
         )
 
     # Check if refresh token is expired
-    # Remove timezone for comparison since SQLite stores naive datetimes
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if user.refresh_token_expires and user.refresh_token_expires < now:
+    now = datetime.now(timezone.utc)
+    refresh_token_expires = _as_utc_aware(user.refresh_token_expires)
+    if refresh_token_expires and refresh_token_expires < now:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token expired"
@@ -490,6 +501,17 @@ async def register(
     db.commit()
     db.refresh(user)
 
+    # Auto-create volunteer profile for volunteer users
+    if register_data.user_type == "volunteer":
+        volunteer_count = len(volunteer_crud.get_volunteers(db))
+        volunteer_id_str = f"VLT{volunteer_count + 1:03d}"
+        volunteer_data = VolunteerCreate(
+            user_id=user.id,
+            volunteer_id=volunteer_id_str,
+            joined_date=date.today()
+        )
+        volunteer_crud.create_volunteer(db, volunteer_data)
+
     # Log account creation
 
     audit_logger.log_event(
@@ -545,9 +567,9 @@ async def verify_email(
             detail="Invalid or expired verification token"
         )
 
-    # Remove timezone for comparison since SQLite stores naive datetimes
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if user.email_verification_expires < now:
+    now = datetime.now(timezone.utc)
+    email_verification_expires = _as_utc_aware(user.email_verification_expires)
+    if email_verification_expires and email_verification_expires < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification token has expired"
@@ -726,9 +748,9 @@ async def reset_password(
             detail="Invalid or expired reset token"
         )
 
-    # Remove timezone for comparison since SQLite stores naive datetimes
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if user.password_reset_expires < now:
+    now = datetime.now(timezone.utc)
+    password_reset_expires = _as_utc_aware(user.password_reset_expires)
+    if password_reset_expires and password_reset_expires < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset token has expired"
@@ -1004,6 +1026,16 @@ async def google_callback(
         db.add(user)
         db.commit()
         db.refresh(user)
+
+        # Auto-create volunteer profile for new Google OAuth users
+        volunteer_count = len(volunteer_crud.get_volunteers(db))
+        volunteer_id_str = f"VLT{volunteer_count + 1:03d}"
+        volunteer_data = VolunteerCreate(
+            user_id=user.id,
+            volunteer_id=volunteer_id_str,
+            joined_date=date.today()
+        )
+        volunteer_crud.create_volunteer(db, volunteer_data)
 
         # Log account creation
         audit_logger.log_event(

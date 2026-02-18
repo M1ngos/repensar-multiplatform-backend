@@ -2878,6 +2878,7 @@ const adminNav = [
 - `GET /users/` - List users
 - `GET /users/{user_id}` - Get user
 - `PUT /users/{user_id}` - Update user
+- `PUT /users/{user_id}/role` - Change user role (admin only)
 - `POST /users/{user_id}/activate` - Activate user
 - `POST /users/{user_id}/deactivate` - Deactivate user
 - `GET /users/types/all` - Get user types
@@ -2886,9 +2887,18 @@ const adminNav = [
 **Features:**
 - User directory with filters
 - View/edit user details
+- Promote / demote user role (admin only, cannot change own role)
 - Activate/deactivate users
 - Filter by user type and department
 - Search users
+
+**Role Hierarchy (for UI labelling):**
+```
+admin  >  project_manager  >  staff_member  >  volunteer  /  collaborator
+```
+- Moving up = **Promote** (e.g. volunteer → staff_member, staff_member → project_manager)
+- Moving down = **Demote** (e.g. staff_member → volunteer)
+- Volunteer profile is automatically deactivated on demotion from volunteer, reactivated on promotion back to volunteer
 
 **Layout:**
 
@@ -3003,6 +3013,9 @@ const adminNav = [
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => viewUser(user.id)}>View Profile</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => editUser(user)}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openChangeRole(user)}>
+                    Change Role
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {user.is_active ? (
                     <DropdownMenuItem
@@ -3024,6 +3037,69 @@ const adminNav = [
       </TableBody>
     </Table>
   </Card>
+
+  {/* Promote / Demote Dialog */}
+  <Dialog open={changeRoleOpen} onOpenChange={setChangeRoleOpen}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>
+          {getRoleLevel(newRole) > getRoleLevel(selectedUser?.user_type)
+            ? 'Promote User'
+            : 'Demote User'}
+        </DialogTitle>
+        <DialogDescription>
+          {selectedUser?.user_type === 'volunteer' && newRole !== 'volunteer'
+            ? 'This will deactivate the volunteer profile.'
+            : newRole === 'volunteer' && selectedUser?.user_type !== 'volunteer'
+            ? 'This will reactivate or create a volunteer profile.'
+            : 'The user will gain or lose access based on the new role.'}
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4 py-2">
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarFallback>{selectedUser?.name[0]}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium">{selectedUser?.name}</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Badge variant="outline">{selectedUser?.user_type}</Badge>
+              {newRole && newRole !== selectedUser?.user_type && (
+                <>
+                  <ArrowRight className="h-3 w-3" />
+                  <Badge variant="outline">{newRole}</Badge>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">New Role</label>
+          <Select value={newRole} onValueChange={setNewRole}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="volunteer">Volunteer</SelectItem>
+              <SelectItem value="collaborator">Collaborator</SelectItem>
+              <SelectItem value="staff_member">Staff Member</SelectItem>
+              <SelectItem value="project_manager">Project Manager</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => setChangeRoleOpen(false)}>Cancel</Button>
+        <Button
+          onClick={confirmChangeRole}
+          disabled={!newRole || newRole === selectedUser?.user_type}
+        >
+          Confirm
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </div>
 ```
 
@@ -3033,14 +3109,16 @@ const adminNav = [
 - Input, Button, Badge
 - Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 - Avatar, AvatarImage, AvatarFallback
+- Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 - DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator
-- Icons: UserPlus, MoreHorizontal
+- Icons: UserPlus, MoreHorizontal, ArrowRight
 
 **API Calls:**
 - Load users: `GET /users/?search={query}&user_type={filter}&department_id={filter}&is_active={filter}&page={page}`
 - Load departments: `GET /users/departments/all`
 - Load user types: `GET /users/types/all`
 - Update user: `PUT /users/{user_id}`
+- Promote/demote: `PUT /users/{user_id}/role?user_type_name={role}` — works in any direction; automatically deactivates volunteer profile when moving away from volunteer, reactivates/creates it when moving back to volunteer; cannot be used on own account
 - Activate: `POST /users/{user_id}/activate`
 - Deactivate: `POST /users/{user_id}/deactivate`
 
