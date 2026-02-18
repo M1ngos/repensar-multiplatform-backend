@@ -258,7 +258,7 @@ def get_analytics_dashboard(
         # Get volunteer hours
         hours_query = select(func.sum(VolunteerTimeLog.hours)).where(
             and_(
-                VolunteerTimeLog.approval_status == "approved",
+                VolunteerTimeLog.approved == True,
                 date_filter
             )
         )
@@ -325,7 +325,7 @@ def get_volunteer_hours_trends(
             and_(
                 VolunteerTimeLog.date >= start_date,
                 VolunteerTimeLog.date <= end_date,
-                VolunteerTimeLog.approval_status == "approved"
+                VolunteerTimeLog.approved == True
             )
         )
 

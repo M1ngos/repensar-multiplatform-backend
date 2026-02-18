@@ -33,6 +33,16 @@ router = APIRouter(
 
 security = HTTPBearer()
 
+
+def _can_manage_project(current_user: User, project) -> bool:
+    """Project management scope: admin, assigned manager, or project creator."""
+    return (
+        current_user.user_type.name == "admin"
+        or project.project_manager_id == current_user.id
+        or project.created_by_id == current_user.id
+    )
+
+
 # ========================================
 # TASK ENDPOINTS
 # ========================================
@@ -54,8 +64,7 @@ def create_task(
             )
         
         # Check permissions
-        if (current_user.user_type.name not in ["admin", "project_manager"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to create tasks for this project"
@@ -516,8 +525,8 @@ async def assign_volunteer_to_task(
 
         # Check permissions
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and
-            project.project_manager_id != current_user.id):
+        if (current_user.user_type.name != "staff_member" and
+            not _can_manage_project(current_user, project)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to assign volunteers to this task"
@@ -617,8 +626,8 @@ def update_volunteer_assignment(
             )
         
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and 
-            project.project_manager_id != current_user.id):
+        if (current_user.user_type.name != "staff_member" and
+            not _can_manage_project(current_user, project)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update volunteer assignments"
@@ -685,8 +694,7 @@ def remove_volunteer_from_task(
             )
         
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to remove volunteers from this task"
@@ -777,8 +785,7 @@ def create_task_dependency(
             )
         
         project = project_crud.get_project(db, task.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to create task dependencies"

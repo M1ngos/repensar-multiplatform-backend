@@ -15,8 +15,12 @@ from app.schemas.project import (
 class ProjectCRUD:
     def create_project(self, db: Session, project_data: ProjectCreate, current_user_id: int) -> Project:
         """Create a new project."""
+        project_payload = project_data.model_dump(exclude={'created_by_id'})
+        if project_payload.get("project_manager_id") is None:
+            project_payload["project_manager_id"] = current_user_id
+
         project = Project(
-            **project_data.model_dump(exclude={'created_by_id'}),
+            **project_payload,
             created_by_id=current_user_id
         )
         db.add(project)

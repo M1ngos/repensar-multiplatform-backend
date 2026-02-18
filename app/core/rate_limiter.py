@@ -228,7 +228,7 @@ DEFAULT_RATE_LIMITS = {
         lockout_seconds=0
     ),
     "token_refresh": RateLimitRule(
-        max_attempts=10,
+        max_attempts=30,
         window_seconds=60,  # 1 minute
         lockout_seconds=0
     ),

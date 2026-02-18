@@ -38,6 +38,16 @@ router = APIRouter(
 
 security = HTTPBearer()
 
+
+def _can_manage_project(current_user: User, project) -> bool:
+    """Project management scope: admin, assigned manager, or project creator."""
+    return (
+        current_user.user_type.name == "admin"
+        or project.project_manager_id == current_user.id
+        or project.created_by_id == current_user.id
+    )
+
+
 # ========================================
 # PROJECT ENDPOINTS
 # ========================================
@@ -395,7 +405,7 @@ def get_project_team(
                 **team_member.model_dump(),
                 name=user.name,
                 email=user.email,
-                user_type=user_type.name if user_type else None
+                user_type=user_type if user_type else None
             ))
         
         return team_members
@@ -424,8 +434,7 @@ async def add_team_member(
             )
 
         # Check permissions
-        if (current_user.user_type.name not in ["admin"] and
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to manage project team"
@@ -503,8 +512,7 @@ def update_team_member(
                 detail="Project not found"
             )
         
-        if (current_user.user_type.name not in ["admin"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to manage project team"
@@ -554,8 +562,7 @@ def remove_team_member(
                 detail="Project not found"
             )
         
-        if (current_user.user_type.name not in ["admin"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to manage project team"
@@ -615,8 +622,7 @@ def create_milestone(
                 detail="Project not found"
             )
         
-        if (current_user.user_type.name not in ["admin", "project_manager"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to create milestones"
@@ -652,8 +658,7 @@ async def update_milestone(
 
         # Check permissions
         project = project_crud.get_project(db, milestone.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager"] and
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update milestones"
@@ -730,8 +735,7 @@ def delete_milestone(
         
         # Check permissions
         project = project_crud.get_project(db, milestone.project_id)
-        if (current_user.user_type.name not in ["admin"] and 
-            project.project_manager_id != current_user.id):
+        if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to delete milestones"
@@ -791,8 +795,8 @@ def create_environmental_metric(
                 detail="Project not found"
             )
         
-        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and 
-            project.project_manager_id != current_user.id):
+        if (current_user.user_type.name != "staff_member" and
+            not _can_manage_project(current_user, project)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to create metrics"
@@ -830,8 +834,8 @@ def update_environmental_metric(
         
         # Check permissions
         project = project_crud.get_project(db, metric.project_id)
-        if (current_user.user_type.name not in ["admin", "project_manager", "staff_member"] and 
-            project.project_manager_id != current_user.id and
+        if (current_user.user_type.name != "staff_member" and
+            not _can_manage_project(current_user, project) and
             metric.recorded_by_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -866,8 +870,7 @@ def delete_environmental_metric(
         
         # Check permissions
         project = project_crud.get_project(db, metric.project_id)
-        if (current_user.user_type.name not in ["admin"] and 
-            project.project_manager_id != current_user.id and
+        if (not _can_manage_project(current_user, project) and
             metric.recorded_by_id != current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

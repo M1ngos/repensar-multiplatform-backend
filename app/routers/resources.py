@@ -19,6 +19,16 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
+def _can_manage_project(current_user: User, project) -> bool:
+    """Project management scope: admin, assigned manager, or project creator."""
+    return (
+        current_user.user_type.name == "admin"
+        or project.project_manager_id == current_user.id
+        or project.created_by_id == current_user.id
+    )
+
+
 # ========================================
 # RESOURCE ENDPOINTS
 # ========================================
@@ -131,7 +141,7 @@ def allocate_resource_to_project(
             detail="Project not found"
         )
     
-    if current_user.user_type.name not in ["admin", "project_manager"] and project.project_manager_id != current_user.id:
+    if not _can_manage_project(current_user, project):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to allocate resources to this project"
