@@ -67,3 +67,17 @@ class UserUpdate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserCreate(BaseModel):
+    """Schema for creating a new user (admin only)."""
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    phone: Optional[str] = Field(None, max_length=20)
+    department: Optional[str] = Field(None, max_length=50)
+    employee_id: Optional[str] = Field(None, max_length=50)
+    user_type: str = Field(default="volunteer")
+
+    class Config:
+        from_attributes = True

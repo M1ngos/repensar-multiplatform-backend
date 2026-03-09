@@ -843,7 +843,6 @@ async def get_global_rankings(
 async def get_leaderboard(
     leaderboard_type: str,
     timeframe: str = Query("all_time", description="all_time, weekly, or monthly"),
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get leaderboard by type and timeframe."""

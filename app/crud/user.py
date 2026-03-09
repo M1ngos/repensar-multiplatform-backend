@@ -5,7 +5,8 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.models.user import User, UserType
-from app.schemas.user import UserUpdate
+from app.schemas.user import UserUpdate, UserCreate
+from app.core.auth import get_password_hash
 
 
 class UserCRUD:
@@ -18,6 +19,35 @@ class UserCRUD:
     def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
         """Get user by email."""
         return db.exec(select(User).where(User.email == email)).first()
+
+    def create_user(self, db: Session, user_data: UserCreate) -> User:
+        """Create a new user (admin only)."""
+        # Get user type
+        user_type = db.exec(select(UserType).where(UserType.name == user_data.user_type)).first()
+        if not user_type:
+            raise ValueError(f"Invalid user type: {user_data.user_type}")
+
+        # Check if email already exists
+        existing = self.get_user_by_email(db, user_data.email)
+        if existing:
+            raise ValueError(f"User with email {user_data.email} already exists")
+
+        # Create user
+        user = User(
+            name=user_data.name,
+            email=user_data.email,
+            password_hash=get_password_hash(user_data.password),
+            phone=user_data.phone,
+            department=user_data.department,
+            employee_id=user_data.employee_id,
+            user_type_id=user_type.id,
+            is_active=True,
+            is_email_verified=True,  # Admin-created users are verified by default
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
 
     def get_users(
         self,

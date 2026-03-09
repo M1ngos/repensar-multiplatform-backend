@@ -10,7 +10,7 @@ from app.core.deps import get_current_user
 from app.models.user import User, UserType
 from app.crud.user import user_crud
 from app.crud.volunteer import volunteer_crud
-from app.schemas.user import UserSummary, UserDetail, UserUpdate, UserTypeResponse
+from app.schemas.user import UserSummary, UserDetail, UserUpdate, UserTypeResponse, UserCreate
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
 from app.schemas.volunteer import VolunteerCreate
 from datetime import date
@@ -27,6 +27,56 @@ security = HTTPBearer()
 # ========================================
 # USER ENDPOINTS
 # ========================================
+
+@router.post("/", response_model=UserDetail, status_code=status.HTTP_201_CREATED)
+def create_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new user (admin only).
+    """
+    # Check permissions - only admins can create users
+    if current_user.user_type.name != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create users"
+        )
+
+    try:
+        user = user_crud.create_user(db, user_data)
+        return UserDetail(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            phone=user.phone,
+            department=user.department,
+            employee_id=user.employee_id,
+            is_active=user.is_active,
+            is_email_verified=user.is_email_verified,
+            profile_picture=user.profile_picture,
+            last_login=user.last_login,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            user_type=UserTypeResponse(
+                id=user.user_type.id,
+                name=user.user_type.name,
+                description=user.user_type.description
+            ),
+            oauth_provider=user.oauth_provider
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
+
 
 @router.get("/", response_model=PaginatedResponse[UserSummary])
 def get_users(
