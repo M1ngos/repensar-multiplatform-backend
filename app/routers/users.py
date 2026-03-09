@@ -46,6 +46,21 @@ def create_user(
 
     try:
         user = user_crud.create_user(db, user_data)
+        
+        # If user_type is volunteer, create volunteer profile
+        if user_data.user_type == "volunteer":
+            try:
+                volunteer_count = len(volunteer_crud.get_volunteers(db))
+                volunteer_data = VolunteerCreate(
+                    user_id=user.id,
+                    volunteer_id=f"VLT{volunteer_count + 1:03d}",
+                    joined_date=date.today()
+                )
+                volunteer_crud.create_volunteer(db, volunteer_data)
+            except Exception as e:
+                # If volunteer creation fails, still return user but log error
+                print(f"Warning: Failed to create volunteer profile: {e}")
+        
         return UserDetail(
             id=user.id,
             name=user.name,

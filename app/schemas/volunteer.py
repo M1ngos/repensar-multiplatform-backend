@@ -4,11 +4,13 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date, time
 from enum import Enum
 
+
 # Enums
 class VolunteerStatus(str, Enum):
     active = "active"
-    inactive = "inactive" 
+    inactive = "inactive"
     suspended = "suspended"
+
 
 class BackgroundCheckStatus(str, Enum):
     pending = "pending"
@@ -16,11 +18,13 @@ class BackgroundCheckStatus(str, Enum):
     rejected = "rejected"
     not_required = "not_required"
 
+
 class ProficiencyLevel(str, Enum):
     beginner = "beginner"
     intermediate = "intermediate"
     advanced = "advanced"
     expert = "expert"
+
 
 # Volunteer Skills Schemas
 class VolunteerSkillBase(BaseModel):
@@ -29,15 +33,18 @@ class VolunteerSkillBase(BaseModel):
     description: Optional[str] = None
     is_active: bool = True
 
+
 class VolunteerSkillCreate(VolunteerSkillBase):
     pass
+
 
 class VolunteerSkill(VolunteerSkillBase):
     id: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # Volunteer Skill Assignment Schemas
 class VolunteerSkillAssignmentBase(BaseModel):
@@ -47,8 +54,10 @@ class VolunteerSkillAssignmentBase(BaseModel):
     certified: bool = False
     notes: Optional[str] = None
 
+
 class VolunteerSkillAssignmentCreate(VolunteerSkillAssignmentBase):
     pass
+
 
 class VolunteerSkillAssignmentUpdate(BaseModel):
     proficiency_level: Optional[ProficiencyLevel] = None
@@ -56,14 +65,16 @@ class VolunteerSkillAssignmentUpdate(BaseModel):
     certified: Optional[bool] = None
     notes: Optional[str] = None
 
+
 class VolunteerSkillAssignment(VolunteerSkillAssignmentBase):
     id: int
     volunteer_id: int
     created_at: datetime
     skill: VolunteerSkill
-    
+
     class Config:
         from_attributes = True
+
 
 # Volunteer Base Schemas
 class VolunteerBase(BaseModel):
@@ -85,14 +96,16 @@ class VolunteerBase(BaseModel):
     motivation: Optional[str] = None
     notes: Optional[str] = None
 
+
 class VolunteerCreate(VolunteerBase):
     user_id: int
-    
-    @field_validator('volunteer_id')
+
+    @field_validator("volunteer_id")
     def validate_volunteer_id(cls, v):
-        if not v.startswith('VLT'):
+        if not v.startswith("VLT"):
             raise ValueError('Volunteer ID must start with "VLT"')
         return v
+
 
 class VolunteerUpdate(BaseModel):
     date_of_birth: Optional[date] = None
@@ -111,23 +124,40 @@ class VolunteerUpdate(BaseModel):
     motivation: Optional[str] = None
     notes: Optional[str] = None
 
+
+class VolunteerOnboardingUpdate(BaseModel):
+    """Schema for volunteer onboarding wizard PATCH endpoint."""
+
+    gender: Optional[str] = Field(None, max_length=30)
+    date_of_birth: Optional[date] = None
+    city: Optional[str] = Field(None, max_length=100)
+    address: Optional[str] = None
+    postal_code: Optional[str] = Field(None, max_length=20)
+    emergency_contact_name: Optional[str] = Field(None, max_length=100)
+    emergency_contact_phone: Optional[str] = Field(None, max_length=20)
+    emergency_contact_relationship: Optional[str] = Field(None, max_length=50)
+    motivation: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
+
+
 class VolunteerProfile(VolunteerBase):
     id: int
     user_id: int
     total_hours_contributed: float
     created_at: datetime
     updated_at: datetime
-    
+
     # User information
     name: str
     email: str
     phone: Optional[str]
-    
+
     # Skills
     skills: List[VolunteerSkillAssignment] = []
-    
+
     class Config:
         from_attributes = True
+
 
 class Volunteer(VolunteerBase):
     id: int
@@ -135,9 +165,10 @@ class Volunteer(VolunteerBase):
     total_hours_contributed: float
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # Volunteer Time Log Schemas
 class VolunteerTimeLogBase(BaseModel):
@@ -150,16 +181,18 @@ class VolunteerTimeLogBase(BaseModel):
     activity_description: Optional[str] = None
     supervisor_id: Optional[int] = None
 
+
 class VolunteerTimeLogCreate(VolunteerTimeLogBase):
     volunteer_id: int
-    
-    @field_validator('hours')
+
+    @field_validator("hours")
     def validate_hours(cls, v, values=None):
         if v <= 0:
-            raise ValueError('Hours must be greater than 0')
+            raise ValueError("Hours must be greater than 0")
         if v > 24:
-            raise ValueError('Hours cannot exceed 24 per day')
+            raise ValueError("Hours cannot exceed 24 per day")
         return v
+
 
 class VolunteerTimeLogUpdate(BaseModel):
     project_id: Optional[int] = None
@@ -170,19 +203,21 @@ class VolunteerTimeLogUpdate(BaseModel):
     hours: Optional[float] = Field(None, gt=0)
     activity_description: Optional[str] = None
     supervisor_id: Optional[int] = None
-    
-    @field_validator('hours')
+
+    @field_validator("hours")
     def validate_hours(cls, v):
         if v is not None:
             if v <= 0:
-                raise ValueError('Hours must be greater than 0')
+                raise ValueError("Hours must be greater than 0")
             if v > 24:
-                raise ValueError('Hours cannot exceed 24 per day')
+                raise ValueError("Hours cannot exceed 24 per day")
         return v
+
 
 class VolunteerTimeLogApproval(BaseModel):
     approved: bool
-    
+
+
 class VolunteerTimeLog(VolunteerTimeLogBase):
     id: int
     volunteer_id: int
@@ -191,15 +226,16 @@ class VolunteerTimeLog(VolunteerTimeLogBase):
     approved_by_id: Optional[int]
     created_at: datetime
     updated_at: datetime
-    
+
     # Related data
     project_name: Optional[str] = None
     task_title: Optional[str] = None
     supervisor_name: Optional[str] = None
     approved_by_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 # Training Schemas
 class VolunteerTrainingBase(BaseModel):
@@ -210,15 +246,18 @@ class VolunteerTrainingBase(BaseModel):
     valid_for_months: Optional[int] = Field(None, ge=0)
     category: Optional[str] = Field(None, max_length=50)
 
+
 class VolunteerTrainingCreate(VolunteerTrainingBase):
     pass
+
 
 class VolunteerTraining(VolunteerTrainingBase):
     id: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 class VolunteerTrainingRecordBase(BaseModel):
     training_id: int
@@ -229,20 +268,23 @@ class VolunteerTrainingRecordBase(BaseModel):
     certificate_issued: bool = False
     notes: Optional[str] = None
 
+
 class VolunteerTrainingRecordCreate(VolunteerTrainingRecordBase):
     volunteer_id: int
+
 
 class VolunteerTrainingRecord(VolunteerTrainingRecordBase):
     id: int
     volunteer_id: int
     created_at: datetime
-    
+
     # Related data
     training_name: str
     trainer_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 # Registration Schema
 class VolunteerRegistration(BaseModel):
@@ -251,7 +293,7 @@ class VolunteerRegistration(BaseModel):
     email: str = Field(..., max_length=255)
     password: str = Field(..., min_length=8)
     phone: Optional[str] = Field(None, max_length=20)
-    
+
     # Volunteer specific information
     date_of_birth: Optional[date] = None
     gender: Optional[str] = Field(None, max_length=30)
@@ -263,9 +305,10 @@ class VolunteerRegistration(BaseModel):
     emergency_contact_relationship: Optional[str] = Field(None, max_length=50)
     availability: Optional[Dict[str, Any]] = None
     motivation: Optional[str] = None
-    
+
     # Skills
     skill_ids: List[int] = []
+
 
 # Summary Schemas
 class VolunteerSummary(BaseModel):
@@ -278,9 +321,10 @@ class VolunteerSummary(BaseModel):
     joined_date: date
     skills_count: int
     recent_activity: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class VolunteerStats(BaseModel):
     total_volunteers: int

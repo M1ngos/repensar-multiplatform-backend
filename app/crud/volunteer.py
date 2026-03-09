@@ -66,7 +66,8 @@ class VolunteerCRUD:
             )
         
         query = query.offset(skip).limit(limit)
-        return db.exec(query).all()
+        result = db.exec(query).all()
+        return result
     
     def update_volunteer(
         self, db: Session, volunteer_id: int, volunteer_data: VolunteerUpdate

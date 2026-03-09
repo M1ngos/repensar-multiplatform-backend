@@ -64,6 +64,7 @@ class UserUpdate(BaseModel):
     department: Optional[str] = Field(None, max_length=50)
     employee_id: Optional[str] = Field(None, max_length=50)
     profile_picture: Optional[str] = Field(None, max_length=500)
+    user_type: Optional[str] = Field(None, description="User type (admin only)")
 
     class Config:
         from_attributes = True
