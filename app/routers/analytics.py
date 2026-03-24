@@ -3,6 +3,9 @@
 Analytics router for time-series metrics, trends, and dashboard data.
 Provides endpoints for historical data analysis and KPI tracking.
 """
+
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session, select, func, and_, or_, desc
@@ -19,6 +22,8 @@ from app.models.task import Task
 from app.models.volunteer import Volunteer, VolunteerTimeLog
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/analytics",
     tags=["analytics"],
@@ -30,6 +35,7 @@ security = HTTPBearer()
 # ========================================
 # TIME-SERIES METRICS ENDPOINTS
 # ========================================
+
 
 @router.post("/metrics/snapshot")
 def create_metric_snapshot(
@@ -43,7 +49,7 @@ def create_metric_snapshot(
     metric_metadata: Optional[Dict[str, Any]] = None,
     snapshot_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new metric snapshot for time-series tracking.
@@ -51,10 +57,14 @@ def create_metric_snapshot(
     """
     try:
         # Check permissions
-        if current_user.user_type.name not in ["admin", "project_manager", "staff_member"]:
+        if current_user.user_type.name not in [
+            "admin",
+            "project_manager",
+            "staff_member",
+        ]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to create metric snapshots"
+                detail="Not authorized to create metric snapshots",
             )
 
         # Create snapshot
@@ -68,7 +78,7 @@ def create_metric_snapshot(
             volunteer_id=volunteer_id,
             metric_metadata=metric_metadata,
             recorded_by_id=current_user.id,
-            snapshot_date=snapshot_date or datetime.utcnow()
+            snapshot_date=snapshot_date or datetime.utcnow(),
         )
 
         db.add(snapshot)
@@ -78,17 +88,19 @@ def create_metric_snapshot(
         return {
             "success": True,
             "message": "Metric snapshot created successfully",
-            "snapshot_id": snapshot.id
+            "snapshot_id": snapshot.id,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Failed to create metric snapshot: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create metric snapshot: {str(e)}"
+            detail="Failed to create metric snapshot.",
         )
+
 
 @router.get("/metrics/time-series")
 def get_time_series_metrics(
@@ -100,7 +112,7 @@ def get_time_series_metrics(
     volunteer_id: Optional[int] = None,
     granularity: str = Query("daily", regex="^(hourly|daily|weekly|monthly)$"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get time-series metrics for a specific type and date range.
@@ -111,8 +123,10 @@ def get_time_series_metrics(
         query = select(MetricSnapshot).where(
             and_(
                 MetricSnapshot.metric_type == metric_type,
-                MetricSnapshot.snapshot_date >= datetime.combine(start_date, datetime.min.time()),
-                MetricSnapshot.snapshot_date <= datetime.combine(end_date, datetime.max.time())
+                MetricSnapshot.snapshot_date
+                >= datetime.combine(start_date, datetime.min.time()),
+                MetricSnapshot.snapshot_date
+                <= datetime.combine(end_date, datetime.max.time()),
             )
         )
 
@@ -136,18 +150,22 @@ def get_time_series_metrics(
             "end_date": end_date.isoformat(),
             "granularity": granularity,
             "data_points": len(aggregated_data),
-            "data": aggregated_data
+            "data": aggregated_data,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve time-series metrics: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve time-series metrics: {str(e)}"
+            detail="Failed to retrieve time-series metrics.",
         )
 
-def _aggregate_metrics(snapshots: List[MetricSnapshot], granularity: str) -> List[Dict[str, Any]]:
+
+def _aggregate_metrics(
+    snapshots: List[MetricSnapshot], granularity: str
+) -> List[Dict[str, Any]]:
     """Helper function to aggregate metrics based on granularity."""
     if not snapshots:
         return []
@@ -174,8 +192,8 @@ def _aggregate_metrics(snapshots: List[MetricSnapshot], granularity: str) -> Lis
                 "count": 0,
                 "sum": 0.0,
                 "avg": 0.0,
-                "min": float('inf'),
-                "max": float('-inf')
+                "min": float("inf"),
+                "max": float("-inf"),
             }
 
         aggregated[key]["values"].append(snapshot.value)
@@ -194,9 +212,11 @@ def _aggregate_metrics(snapshots: List[MetricSnapshot], granularity: str) -> Lis
 
     return result
 
+
 # ========================================
 # DASHBOARD ENDPOINTS
 # ========================================
+
 
 @router.get("/dashboard")
 def get_analytics_dashboard(
@@ -204,7 +224,7 @@ def get_analytics_dashboard(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get aggregated analytics dashboard with key metrics and KPIs.
@@ -218,8 +238,7 @@ def get_analytics_dashboard(
 
         # Build base filters
         date_filter = and_(
-            VolunteerTimeLog.date >= start_date,
-            VolunteerTimeLog.date <= end_date
+            VolunteerTimeLog.date >= start_date, VolunteerTimeLog.date <= end_date
         )
 
         # Get project statistics
@@ -233,7 +252,7 @@ def get_analytics_dashboard(
             "total_projects": len(projects),
             "active_projects": len([p for p in projects if p.status == "in_progress"]),
             "completed_projects": len([p for p in projects if p.status == "completed"]),
-            "planning_projects": len([p for p in projects if p.status == "planning"])
+            "planning_projects": len([p for p in projects if p.status == "planning"]),
         }
 
         # Get task statistics
@@ -248,19 +267,22 @@ def get_analytics_dashboard(
             "completed_tasks": len([t for t in tasks if t.status == "completed"]),
             "in_progress_tasks": len([t for t in tasks if t.status == "in_progress"]),
             "not_started_tasks": len([t for t in tasks if t.status == "not_started"]),
-            "completion_rate": (len([t for t in tasks if t.status == "completed"]) / len(tasks) * 100) if tasks else 0
+            "completion_rate": (
+                len([t for t in tasks if t.status == "completed"]) / len(tasks) * 100
+            )
+            if tasks
+            else 0,
         }
 
         # Get volunteer statistics
-        volunteer_count_query = select(func.count(Volunteer.id)).where(Volunteer.volunteer_status == "active")
+        volunteer_count_query = select(func.count(Volunteer.id)).where(
+            Volunteer.volunteer_status == "active"
+        )
         active_volunteers = db.exec(volunteer_count_query).one()
 
         # Get volunteer hours
         hours_query = select(func.sum(VolunteerTimeLog.hours)).where(
-            and_(
-                VolunteerTimeLog.approved == True,
-                date_filter
-            )
+            and_(VolunteerTimeLog.approved == True, date_filter)
         )
         if project_id:
             hours_query = hours_query.where(VolunteerTimeLog.project_id == project_id)
@@ -270,7 +292,9 @@ def get_analytics_dashboard(
         volunteer_stats = {
             "active_volunteers": active_volunteers,
             "total_hours_logged": float(total_hours),
-            "avg_hours_per_volunteer": float(total_hours / active_volunteers) if active_volunteers > 0 else 0.0
+            "avg_hours_per_volunteer": float(total_hours / active_volunteers)
+            if active_volunteers > 0
+            else 0.0,
         }
 
         # Get budget statistics (if project specified)
@@ -280,31 +304,39 @@ def get_analytics_dashboard(
             if project:
                 budget_stats = {
                     "total_budget": float(project.budget) if project.budget else 0.0,
-                    "actual_cost": float(project.actual_cost) if project.actual_cost else 0.0,
-                    "budget_utilization": (float(project.actual_cost) / float(project.budget) * 100) if project.budget and project.budget > 0 else 0.0
+                    "actual_cost": float(project.actual_cost)
+                    if project.actual_cost
+                    else 0.0,
+                    "budget_utilization": (
+                        float(project.actual_cost) / float(project.budget) * 100
+                    )
+                    if project.budget and project.budget > 0
+                    else 0.0,
                 }
 
         return {
             "period": {
                 "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat()
+                "end_date": end_date.isoformat(),
             },
             "project_filter": project_id,
             "summary": {
                 "projects": project_stats,
                 "tasks": task_stats,
                 "volunteers": volunteer_stats,
-                "budget": budget_stats if budget_stats else None
-            }
+                "budget": budget_stats if budget_stats else None,
+            },
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve analytics dashboard data: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve dashboard data: {str(e)}"
+            detail="Failed to retrieve dashboard data.",
         )
+
 
 @router.get("/trends/volunteer-hours")
 def get_volunteer_hours_trends(
@@ -314,7 +346,7 @@ def get_volunteer_hours_trends(
     volunteer_id: Optional[int] = None,
     granularity: str = Query("monthly", regex="^(daily|weekly|monthly)$"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get volunteer hours trends over time.
@@ -325,7 +357,7 @@ def get_volunteer_hours_trends(
             and_(
                 VolunteerTimeLog.date >= start_date,
                 VolunteerTimeLog.date <= end_date,
-                VolunteerTimeLog.approved == True
+                VolunteerTimeLog.approved == True,
             )
         )
 
@@ -361,16 +393,18 @@ def get_volunteer_hours_trends(
             "end_date": end_date.isoformat(),
             "granularity": granularity,
             "data_points": len(result),
-            "trends": result
+            "trends": result,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve volunteer hours trends: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer hours trends: {str(e)}"
+            detail="Failed to retrieve volunteer hours trends.",
         )
+
 
 @router.get("/trends/project-progress")
 def get_project_progress_trends(
@@ -378,7 +412,7 @@ def get_project_progress_trends(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get project progress trends over time based on MetricSnapshot data.
@@ -388,8 +422,7 @@ def get_project_progress_trends(
         project = db.get(Project, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Set default dates
@@ -399,14 +432,20 @@ def get_project_progress_trends(
             start_date = project.start_date or (end_date - timedelta(days=90))
 
         # Get progress snapshots
-        query = select(MetricSnapshot).where(
-            and_(
-                MetricSnapshot.metric_type == MetricType.project_progress,
-                MetricSnapshot.project_id == project_id,
-                MetricSnapshot.snapshot_date >= datetime.combine(start_date, datetime.min.time()),
-                MetricSnapshot.snapshot_date <= datetime.combine(end_date, datetime.max.time())
+        query = (
+            select(MetricSnapshot)
+            .where(
+                and_(
+                    MetricSnapshot.metric_type == MetricType.project_progress,
+                    MetricSnapshot.project_id == project_id,
+                    MetricSnapshot.snapshot_date
+                    >= datetime.combine(start_date, datetime.min.time()),
+                    MetricSnapshot.snapshot_date
+                    <= datetime.combine(end_date, datetime.max.time()),
+                )
             )
-        ).order_by(MetricSnapshot.snapshot_date)
+            .order_by(MetricSnapshot.snapshot_date)
+        )
 
         snapshots = db.exec(query).all()
 
@@ -415,7 +454,7 @@ def get_project_progress_trends(
             {
                 "date": snapshot.snapshot_date.date().isoformat(),
                 "progress_percentage": snapshot.value,
-                "metadata": snapshot.metric_metadata
+                "metadata": snapshot.metric_metadata,
             }
             for snapshot in snapshots
         ]
@@ -423,14 +462,22 @@ def get_project_progress_trends(
         # If no snapshots, calculate current progress
         if not trends:
             from app.crud.project import project_crud
-            project_data = project_crud.get_project_with_details(db, project_id)
-            current_progress = (project_data["completed_tasks"] / max(project_data["total_tasks"], 1)) * 100 if project_data else 0.0
 
-            trends = [{
-                "date": date.today().isoformat(),
-                "progress_percentage": current_progress,
-                "metadata": {"source": "calculated"}
-            }]
+            project_data = project_crud.get_project_with_details(db, project_id)
+            current_progress = (
+                (project_data["completed_tasks"] / max(project_data["total_tasks"], 1))
+                * 100
+                if project_data
+                else 0.0
+            )
+
+            trends = [
+                {
+                    "date": date.today().isoformat(),
+                    "progress_percentage": current_progress,
+                    "metadata": {"source": "calculated"},
+                }
+            ]
 
         return {
             "project_id": project_id,
@@ -438,16 +485,22 @@ def get_project_progress_trends(
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "data_points": len(trends),
-            "trends": trends
+            "trends": trends,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to retrieve project progress trends for project %s: %s",
+            project_id,
+            e,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project progress trends: {str(e)}"
+            detail="Failed to retrieve project progress trends.",
         )
+
 
 @router.get("/trends/environmental-impact")
 def get_environmental_impact_trends(
@@ -456,7 +509,7 @@ def get_environmental_impact_trends(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get environmental impact metrics trends over time.
@@ -474,7 +527,7 @@ def get_environmental_impact_trends(
         query = select(EnvironmentalMetric).where(
             and_(
                 EnvironmentalMetric.measurement_date >= start_date,
-                EnvironmentalMetric.measurement_date <= end_date
+                EnvironmentalMetric.measurement_date <= end_date,
             )
         )
 
@@ -496,35 +549,48 @@ def get_environmental_impact_trends(
                     "metric_name": name,
                     "metric_type": metric.metric_type,
                     "unit": metric.unit,
-                    "data_points": []
+                    "data_points": [],
                 }
 
-            grouped[name]["data_points"].append({
-                "date": metric.measurement_date.isoformat() if metric.measurement_date else None,
-                "target_value": float(metric.target_value) if metric.target_value else None,
-                "current_value": float(metric.current_value),
-                "progress_percentage": (float(metric.current_value) / float(metric.target_value) * 100) if metric.target_value and metric.target_value > 0 else None,
-                "project_id": metric.project_id
-            })
+            grouped[name]["data_points"].append(
+                {
+                    "date": metric.measurement_date.isoformat()
+                    if metric.measurement_date
+                    else None,
+                    "target_value": float(metric.target_value)
+                    if metric.target_value
+                    else None,
+                    "current_value": float(metric.current_value),
+                    "progress_percentage": (
+                        float(metric.current_value) / float(metric.target_value) * 100
+                    )
+                    if metric.target_value and metric.target_value > 0
+                    else None,
+                    "project_id": metric.project_id,
+                }
+            )
 
         return {
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "metrics_count": len(grouped),
-            "metrics": list(grouped.values())
+            "metrics": list(grouped.values()),
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve environmental impact trends: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve environmental impact trends: {str(e)}"
+            detail="Failed to retrieve environmental impact trends.",
         )
+
 
 # ========================================
 # USER DASHBOARD MANAGEMENT
 # ========================================
+
 
 @router.post("/dashboards")
 def create_dashboard(
@@ -533,7 +599,7 @@ def create_dashboard(
     widgets: Dict[str, Any] = {},
     is_default: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new custom dashboard."""
     try:
@@ -541,7 +607,10 @@ def create_dashboard(
         if is_default:
             existing_default = db.exec(
                 select(Dashboard).where(
-                    and_(Dashboard.user_id == current_user.id, Dashboard.is_default == True)
+                    and_(
+                        Dashboard.user_id == current_user.id,
+                        Dashboard.is_default == True,
+                    )
                 )
             ).first()
             if existing_default:
@@ -553,7 +622,7 @@ def create_dashboard(
             name=name,
             description=description,
             widgets=widgets,
-            is_default=is_default
+            is_default=is_default,
         )
 
         db.add(dashboard)
@@ -563,20 +632,23 @@ def create_dashboard(
         return {
             "success": True,
             "message": "Dashboard created successfully",
-            "dashboard_id": dashboard.id
+            "dashboard_id": dashboard.id,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
+        logger.error("Failed to create dashboard: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create dashboard: {str(e)}"
+            detail="Failed to create dashboard.",
         )
+
 
 @router.get("/dashboards")
 def get_user_dashboards(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get all dashboards for the current user."""
     try:
@@ -594,14 +666,17 @@ def get_user_dashboards(
                     "is_default": d.is_default,
                     "widgets": d.widgets,
                     "created_at": d.created_at.isoformat(),
-                    "updated_at": d.updated_at.isoformat()
+                    "updated_at": d.updated_at.isoformat(),
                 }
                 for d in dashboards
-            ]
+            ],
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to retrieve dashboards: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve dashboards: {str(e)}"
+            detail="Failed to retrieve dashboards.",
         )

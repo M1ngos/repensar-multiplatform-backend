@@ -1,4 +1,6 @@
 # volunteers.py
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session
@@ -41,6 +43,8 @@ from app.schemas.common import PaginatedResponse, create_pagination_metadata
 from app.services.notification_service import NotificationService
 from app.services.analytics_service import track_volunteer_hours
 from app.services.event_bus import EventType, get_event_bus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/volunteers",
@@ -117,10 +121,13 @@ def register_volunteer(
             "user_id": user.id,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Volunteer registration failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Registration failed: {str(e)}",
+            detail="Registration failed. Please try again.",
         )
 
 
@@ -172,9 +179,10 @@ def get_my_volunteer_profile(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve volunteer profile: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer profile: {str(e)}",
+            detail="Failed to retrieve volunteer profile.",
         )
 
 
@@ -227,9 +235,10 @@ def get_volunteers(
         return volunteer_summaries
 
     except Exception as e:
+        logger.error("Failed to retrieve volunteers: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteers: {str(e)}",
+            detail="Failed to retrieve volunteers.",
         )
 
 
@@ -240,9 +249,10 @@ def get_volunteer_stats(db: Session = Depends(get_db)):
         stats = volunteer_stats_crud.get_volunteer_stats(db)
         return VolunteerStats(**stats)
     except Exception as e:
+        logger.error("Failed to retrieve volunteer stats: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer stats: {str(e)}",
+            detail="Failed to retrieve volunteer stats.",
         )
 
 
@@ -286,9 +296,10 @@ def get_volunteer_profile(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve volunteer profile %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer profile: {str(e)}",
+            detail="Failed to retrieve volunteer profile.",
         )
 
 
@@ -332,9 +343,10 @@ def update_volunteer_profile(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update volunteer profile %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update volunteer profile: {str(e)}",
+            detail="Failed to update volunteer profile.",
         )
 
 
@@ -364,9 +376,10 @@ def deactivate_volunteer(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to deactivate volunteer %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to deactivate volunteer: {str(e)}",
+            detail="Failed to deactivate volunteer.",
         )
 
 
@@ -386,9 +399,10 @@ def get_available_skills(
         skills = volunteer_skill_crud.get_skills(db, skip=skip, limit=limit)
         return [VolunteerSkill(**skill.model_dump()) for skill in skills]
     except Exception as e:
+        logger.error("Failed to retrieve skills: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve skills: {str(e)}",
+            detail="Failed to retrieve skills.",
         )
 
 
@@ -400,12 +414,24 @@ def get_volunteer_skills(
 ):
     """Get skills for a specific volunteer."""
     try:
-        skills = volunteer_skill_crud.get_volunteer_skills(db, volunteer_id)
-        return [VolunteerSkillAssignment(**skill.model_dump()) for skill in skills]
+        skill_rows = volunteer_skill_crud.get_volunteer_skills(db, volunteer_id)
+        result = []
+        for sa in skill_rows:
+            skill_obj = volunteer_skill_crud.get_skill(db, sa.skill_id)
+            result.append(
+                VolunteerSkillAssignment(
+                    **sa.model_dump(),
+                    skill=VolunteerSkill.model_validate(skill_obj)
+                    if skill_obj
+                    else None,
+                )
+            )
+        return result
     except Exception as e:
+        logger.error("Failed to retrieve volunteer skills for %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer skills: {str(e)}",
+            detail="Failed to retrieve volunteer skills.",
         )
 
 
@@ -452,14 +478,18 @@ def assign_skill_to_volunteer(
                 detail="Skill already assigned to volunteer",
             )
 
-        return VolunteerSkillAssignment(**assignment.model_dump())
+        return VolunteerSkillAssignment(
+            **assignment.model_dump(),
+            skill=VolunteerSkill.model_validate(skill),
+        )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to assign skill to volunteer %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to assign skill: {str(e)}",
+            detail="Failed to assign skill.",
         )
 
 
@@ -502,14 +532,26 @@ def update_volunteer_skill(
                 detail="Skill assignment not found",
             )
 
-        return VolunteerSkillAssignment(**updated_assignment.model_dump())
+        updated_skill = volunteer_skill_crud.get_skill(db, updated_assignment.skill_id)
+        return VolunteerSkillAssignment(
+            **updated_assignment.model_dump(),
+            skill=VolunteerSkill.model_validate(updated_skill)
+            if updated_skill
+            else None,
+        )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to update skill assignment for volunteer %s skill %s: %s",
+            volunteer_id,
+            skill_id,
+            e,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update skill assignment: {str(e)}",
+            detail="Failed to update skill assignment.",
         )
 
 
@@ -553,9 +595,12 @@ def remove_skill_from_volunteer(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to remove skill %s from volunteer %s: %s", skill_id, volunteer_id, e
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to remove skill: {str(e)}",
+            detail="Failed to remove skill.",
         )
 
 
@@ -609,9 +654,10 @@ def get_volunteer_hours(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve volunteer hours for %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer hours: {str(e)}",
+            detail="Failed to retrieve volunteer hours.",
         )
 
 
@@ -651,9 +697,10 @@ def log_volunteer_hours(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to log volunteer hours for %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to log volunteer hours: {str(e)}",
+            detail="Failed to log volunteer hours.",
         )
 
 
@@ -711,9 +758,10 @@ def update_volunteer_hours(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update time log %s: %s", time_log_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update time log: {str(e)}",
+            detail="Failed to update time log.",
         )
 
 
@@ -750,12 +798,12 @@ async def approve_volunteer_hours(
         volunteer = db.get(Volunteer, approved_log.volunteer_id)
         if volunteer:
             # Notify volunteer about approval/rejection
-            if approval_data.is_approved:
+            if approval_data.approved:
                 await NotificationService.create_notification(
                     db=db,
                     user_id=volunteer.user_id,
                     title="Time Log Approved",
-                    message=f"{approved_log.hours_worked} hours of volunteer work have been approved!",
+                    message=f"{approved_log.hours} hours of volunteer work have been approved!",
                     notification_type=NotificationType.success,
                     related_project_id=approved_log.project_id,
                     related_task_id=approved_log.task_id,
@@ -765,7 +813,7 @@ async def approve_volunteer_hours(
                 await track_volunteer_hours(
                     db=db,
                     volunteer_id=volunteer.id,
-                    hours=float(approved_log.hours_worked),
+                    hours=float(approved_log.hours),
                     project_id=approved_log.project_id,
                     task_id=approved_log.task_id,
                 )
@@ -779,7 +827,7 @@ async def approve_volunteer_hours(
                             "time_log_id": time_log_id,
                             "volunteer_id": volunteer.id,
                             "user_id": volunteer.user_id,
-                            "hours_worked": float(approved_log.hours_worked),
+                            "hours_worked": float(approved_log.hours),
                             "project_id": approved_log.project_id,
                             "task_id": approved_log.task_id,
                             "approved_by": current_user.id,
@@ -790,7 +838,9 @@ async def approve_volunteer_hours(
                     pass
             else:
                 # Rejection notification
-                rejection_message = f"Your time log ({approved_log.hours_worked} hours) was not approved."
+                rejection_message = (
+                    f"Your time log ({approved_log.hours} hours) was not approved."
+                )
                 if approval_data.notes:
                     rejection_message += f" Reason: {approval_data.notes}"
 
@@ -813,7 +863,7 @@ async def approve_volunteer_hours(
                             "time_log_id": time_log_id,
                             "volunteer_id": volunteer.id,
                             "user_id": volunteer.user_id,
-                            "hours_worked": float(approved_log.hours_worked),
+                            "hours_worked": float(approved_log.hours),
                             "project_id": approved_log.project_id,
                             "rejected_by": current_user.id,
                             "notes": approval_data.notes,
@@ -828,9 +878,10 @@ async def approve_volunteer_hours(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to approve time log %s: %s", time_log_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to approve time log: {str(e)}",
+            detail="Failed to approve time log.",
         )
 
 
@@ -885,9 +936,10 @@ def delete_volunteer_hours(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to delete time log %s: %s", time_log_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete time log: {str(e)}",
+            detail="Failed to delete time log.",
         )
 
 
@@ -925,9 +977,10 @@ def get_volunteer_hours_summary(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve hours summary for %s: %s", volunteer_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve hours summary: {str(e)}",
+            detail="Failed to retrieve hours summary.",
         )
 
 
@@ -1054,9 +1107,12 @@ def get_volunteer_projects(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to retrieve projects for volunteer %s: %s", volunteer_id, e
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer projects: {str(e)}",
+            detail="Failed to retrieve volunteer projects.",
         )
 
 
@@ -1065,8 +1121,8 @@ def get_volunteer_tasks(
     volunteer_id: int,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    status: Optional[str] = Query(
-        None, regex="^(not_started|in_progress|completed|cancelled)$"
+    task_status: Optional[str] = Query(
+        None, alias="status", pattern="^(not_started|in_progress|completed|cancelled)$"
     ),
     project_id: Optional[int] = None,
     db: Session = Depends(get_db),
@@ -1077,13 +1133,14 @@ def get_volunteer_tasks(
     from app.models.task import Task, TaskVolunteer
     from app.models.project import Project
     from sqlmodel import select, func
+    from fastapi import status as http_status
 
     try:
         # Check if volunteer exists
         volunteer = volunteer_crud.get_volunteer(db, volunteer_id)
         if not volunteer:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
             )
 
         # Check permissions
@@ -1093,7 +1150,7 @@ def get_volunteer_tasks(
             and volunteer.user_id != current_user.id
         ):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view volunteer tasks",
             )
 
@@ -1107,8 +1164,8 @@ def get_volunteer_tasks(
             .where(TaskVolunteer.volunteer_id == volunteer_id)
         )
 
-        if status:
-            task_query = task_query.where(Task.status == status)
+        if task_status:
+            task_query = task_query.where(Task.status == task_status)
 
         if project_id:
             task_query = task_query.where(Task.project_id == project_id)
@@ -1124,8 +1181,8 @@ def get_volunteer_tasks(
             .where(TaskVolunteer.volunteer_id == volunteer_id)
         )
 
-        if status:
-            count_query = count_query.where(Task.status == status)
+        if task_status:
+            count_query = count_query.where(Task.status == task_status)
 
         if project_id:
             count_query = count_query.where(Task.project_id == project_id)
@@ -1157,7 +1214,7 @@ def get_volunteer_tasks(
                     **task.model_dump(),
                     project_name=project_name,
                     assigned_to_name=assigned_to_name,
-                    volunteers_count=volunteers_count,
+                    volunteers_assigned=volunteers_count,
                 )
             )
 
@@ -1169,9 +1226,10 @@ def get_volunteer_tasks(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve tasks for volunteer %s: %s", volunteer_id, e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer tasks: {str(e)}",
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve volunteer tasks.",
         )
 
 
@@ -1220,9 +1278,12 @@ def update_volunteer_onboarding(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to update onboarding for volunteer %s: %s", volunteer_id, e
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update onboarding: {str(e)}",
+            detail="Failed to update onboarding.",
         )
 
 
@@ -1306,7 +1367,10 @@ def get_volunteer_activity(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to retrieve activity for volunteer %s: %s", volunteer_id, e
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve volunteer activity: {str(e)}",
+            detail="Failed to retrieve volunteer activity.",
         )

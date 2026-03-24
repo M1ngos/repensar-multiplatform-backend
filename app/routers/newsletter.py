@@ -2,6 +2,9 @@
 """
 Newsletter Router - Handles contact form, subscriptions, and campaign management.
 """
+
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response, RedirectResponse
 from fastapi.security import HTTPBearer
@@ -18,20 +21,44 @@ from app.services.newsletter_service import newsletter_service
 from app.services.campaign_service import campaign_service
 from app.schemas.newsletter import (
     # Contact schemas
-    ContactFormCreate, ContactSubmission, ContactSubmissionListResponse,
+    ContactFormCreate,
+    ContactSubmission,
+    ContactSubmissionListResponse,
     # Tag schemas
-    NewsletterTagCreate, NewsletterTagUpdate, NewsletterTag, NewsletterTagListResponse,
+    NewsletterTagCreate,
+    NewsletterTagUpdate,
+    NewsletterTag,
+    NewsletterTagListResponse,
     # Subscriber schemas
-    SubscribeRequest, SubscribeResponse, SubscriberCreate, SubscriberUpdate,
-    Subscriber, SubscriberSummary, SubscriberListResponse, AddTagsRequest,
-    ConfirmationResponse, UnsubscribeResponse,
+    SubscribeRequest,
+    SubscribeResponse,
+    SubscriberCreate,
+    SubscriberUpdate,
+    Subscriber,
+    SubscriberSummary,
+    SubscriberListResponse,
+    AddTagsRequest,
+    ConfirmationResponse,
+    UnsubscribeResponse,
     # Template schemas
-    EmailTemplateCreate, EmailTemplateUpdate, EmailTemplate, EmailTemplateListResponse,
+    EmailTemplateCreate,
+    EmailTemplateUpdate,
+    EmailTemplate,
+    EmailTemplateListResponse,
     # Campaign schemas
-    CampaignCreate, CampaignUpdate, CampaignScheduleRequest, CampaignTestRequest,
-    Campaign, CampaignSummary, CampaignListResponse, CampaignStats,
-    CampaignRecipient, CampaignRecipientListResponse,
+    CampaignCreate,
+    CampaignUpdate,
+    CampaignScheduleRequest,
+    CampaignTestRequest,
+    Campaign,
+    CampaignSummary,
+    CampaignListResponse,
+    CampaignStats,
+    CampaignRecipient,
+    CampaignRecipientListResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["newsletter"],
@@ -46,7 +73,7 @@ def require_admin(current_user: User) -> User:
     if current_user.user_type.name not in ["admin", "staff"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can perform this action"
+            detail="Only administrators can perform this action",
         )
     return current_user
 
@@ -55,11 +82,10 @@ def require_admin(current_user: User) -> User:
 # CONTACT FORM ENDPOINTS (Public)
 # ========================================
 
+
 @router.post("/contact", status_code=status.HTTP_201_CREATED)
 async def submit_contact_form(
-    data: ContactFormCreate,
-    request: Request,
-    db: Session = Depends(get_db)
+    data: ContactFormCreate, request: Request, db: Session = Depends(get_db)
 ):
     """
     Submit a contact form from the landing page.
@@ -75,18 +101,21 @@ async def submit_contact_form(
         user_agent = request.headers.get("user-agent")
 
         submission = await contact_service.submit_contact_form(
-            db=db,
-            data=data,
-            ip_address=ip_address,
-            user_agent=user_agent
+            db=db, data=data, ip_address=ip_address, user_agent=user_agent
         )
 
-        return {"message": "Thank you for your message. We'll get back to you soon!", "id": submission.id}
+        return {
+            "message": "Thank you for your message. We'll get back to you soon!",
+            "id": submission.id,
+        }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to submit contact form: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit contact form: {str(e)}"
+            detail="Failed to submit contact form.",
         )
 
 
@@ -94,13 +123,14 @@ async def submit_contact_form(
 # CONTACT FORM ADMIN ENDPOINTS
 # ========================================
 
+
 @router.get("/contact/submissions", response_model=ContactSubmissionListResponse)
 def get_contact_submissions(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     unread_only: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all contact form submissions.
@@ -117,7 +147,7 @@ def get_contact_submissions(
         items=[ContactSubmission.model_validate(s) for s in submissions],
         total=total,
         skip=skip,
-        limit=limit
+        limit=limit,
     )
 
 
@@ -125,7 +155,7 @@ def get_contact_submissions(
 def get_contact_submission(
     submission_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get a specific contact submission.
@@ -141,11 +171,13 @@ def get_contact_submission(
     return ContactSubmission.model_validate(submission)
 
 
-@router.patch("/contact/submissions/{submission_id}/read", response_model=ContactSubmission)
+@router.patch(
+    "/contact/submissions/{submission_id}/read", response_model=ContactSubmission
+)
 def mark_submission_read(
     submission_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Mark a contact submission as read.
@@ -161,11 +193,13 @@ def mark_submission_read(
     return ContactSubmission.model_validate(submission)
 
 
-@router.delete("/contact/submissions/{submission_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/contact/submissions/{submission_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_contact_submission(
     submission_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a contact submission.
@@ -182,11 +216,10 @@ def delete_contact_submission(
 # NEWSLETTER SUBSCRIPTION ENDPOINTS (Public)
 # ========================================
 
+
 @router.post("/newsletter/subscribe", response_model=SubscribeResponse)
 async def subscribe_to_newsletter(
-    data: SubscribeRequest,
-    request: Request,
-    db: Session = Depends(get_db)
+    data: SubscribeRequest, request: Request, db: Session = Depends(get_db)
 ):
     """
     Subscribe to the newsletter (double opt-in).
@@ -199,35 +232,30 @@ async def subscribe_to_newsletter(
         ip_address = request.client.host if request.client else None
 
         subscriber, is_new = await newsletter_service.subscribe(
-            db=db,
-            email=data.email,
-            name=data.name,
-            ip_address=ip_address
+            db=db, email=data.email, name=data.name, ip_address=ip_address
         )
 
         if is_new:
             return SubscribeResponse(
                 message="Please check your email to confirm your subscription.",
-                requires_confirmation=True
+                requires_confirmation=True,
             )
         else:
             return SubscribeResponse(
                 message="You are already subscribed to our newsletter.",
-                requires_confirmation=False
+                requires_confirmation=False,
             )
 
     except Exception as e:
+        logger.error("Failed to process subscription: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process subscription: {str(e)}"
+            detail="Failed to process subscription",
         )
 
 
 @router.get("/newsletter/confirm/{token}", response_model=ConfirmationResponse)
-def confirm_subscription(
-    token: str,
-    db: Session = Depends(get_db)
-):
+def confirm_subscription(token: str, db: Session = Depends(get_db)):
     """
     Confirm newsletter subscription via token.
 
@@ -238,12 +266,12 @@ def confirm_subscription(
     if not subscriber:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired confirmation link. Please try subscribing again."
+            detail="Invalid or expired confirmation link. Please try subscribing again.",
         )
 
     return ConfirmationResponse(
         message="Your subscription has been confirmed. Thank you!",
-        email=subscriber.email
+        email=subscriber.email,
     )
 
 
@@ -262,15 +290,12 @@ def get_unsubscribe_page(token: str, db: Session = Depends(get_db)):
     return {
         "email": subscriber.email,
         "status": subscriber.status.value,
-        "message": "Are you sure you want to unsubscribe?"
+        "message": "Are you sure you want to unsubscribe?",
     }
 
 
 @router.post("/newsletter/unsubscribe/{token}", response_model=UnsubscribeResponse)
-async def unsubscribe_from_newsletter(
-    token: str,
-    db: Session = Depends(get_db)
-):
+async def unsubscribe_from_newsletter(token: str, db: Session = Depends(get_db)):
     """
     Unsubscribe from newsletter via token.
 
@@ -280,19 +305,18 @@ async def unsubscribe_from_newsletter(
 
     if not subscriber:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid unsubscribe link"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid unsubscribe link"
         )
 
     return UnsubscribeResponse(
-        message="You have been successfully unsubscribed.",
-        email=subscriber.email
+        message="You have been successfully unsubscribed.", email=subscriber.email
     )
 
 
 # ========================================
 # SUBSCRIBER MANAGEMENT ENDPOINTS (Admin)
 # ========================================
+
 
 @router.get("/newsletter/subscribers", response_model=SubscriberListResponse)
 def get_subscribers(
@@ -302,7 +326,7 @@ def get_subscribers(
     tag_id: Optional[int] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all newsletter subscribers with filtering.
@@ -318,23 +342,29 @@ def get_subscribers(
     items = []
     for s in subscribers:
         tag_count = newsletter_crud.get_subscriber_tag_count(db, s.id)
-        items.append(SubscriberSummary(
-            id=s.id,
-            email=s.email,
-            name=s.name,
-            status=s.status,
-            subscribed_at=s.subscribed_at,
-            tag_count=tag_count
-        ))
+        items.append(
+            SubscriberSummary(
+                id=s.id,
+                email=s.email,
+                name=s.name,
+                status=s.status,
+                subscribed_at=s.subscribed_at,
+                tag_count=tag_count,
+            )
+        )
 
     return SubscriberListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
-@router.post("/newsletter/subscribers", response_model=Subscriber, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/newsletter/subscribers",
+    response_model=Subscriber,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_subscriber(
     data: SubscriberCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Manually add a subscriber (admin only, skips double opt-in).
@@ -348,7 +378,7 @@ def create_subscriber(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already subscribed"
+            detail="Email is already subscribed",
         )
 
     subscriber = newsletter_crud.create_subscriber(
@@ -356,7 +386,7 @@ def create_subscriber(
         email=data.email,
         name=data.name,
         status=data.status,
-        tag_ids=data.tag_ids
+        tag_ids=data.tag_ids,
     )
 
     return Subscriber.model_validate(subscriber)
@@ -366,7 +396,7 @@ def create_subscriber(
 def get_subscriber(
     subscriber_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get a specific subscriber.
@@ -387,7 +417,7 @@ def update_subscriber(
     subscriber_id: int,
     data: SubscriberUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a subscriber.
@@ -403,11 +433,13 @@ def update_subscriber(
     return Subscriber.model_validate(subscriber)
 
 
-@router.delete("/newsletter/subscribers/{subscriber_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/newsletter/subscribers/{subscriber_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_subscriber(
     subscriber_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a subscriber.
@@ -425,7 +457,7 @@ def add_tags_to_subscriber(
     subscriber_id: int,
     data: AddTagsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Add tags to a subscriber.
@@ -441,12 +473,15 @@ def add_tags_to_subscriber(
     return Subscriber.model_validate(subscriber)
 
 
-@router.delete("/newsletter/subscribers/{subscriber_id}/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/newsletter/subscribers/{subscriber_id}/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def remove_tag_from_subscriber(
     subscriber_id: int,
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Remove a tag from a subscriber.
@@ -463,10 +498,10 @@ def remove_tag_from_subscriber(
 # TAG MANAGEMENT ENDPOINTS (Admin)
 # ========================================
 
+
 @router.get("/newsletter/tags", response_model=NewsletterTagListResponse)
 def get_tags(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get all newsletter tags.
@@ -480,24 +515,30 @@ def get_tags(
     items = []
     for t in tags:
         count = newsletter_crud.get_tag_subscriber_count(db, t.id)
-        items.append(NewsletterTag(
-            id=t.id,
-            name=t.name,
-            slug=t.slug,
-            description=t.description,
-            color=t.color,
-            created_at=t.created_at,
-            subscriber_count=count
-        ))
+        items.append(
+            NewsletterTag(
+                id=t.id,
+                name=t.name,
+                slug=t.slug,
+                description=t.description,
+                color=t.color,
+                created_at=t.created_at,
+                subscriber_count=count,
+            )
+        )
 
     return NewsletterTagListResponse(items=items, total=total)
 
 
-@router.post("/newsletter/tags", response_model=NewsletterTag, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/newsletter/tags",
+    response_model=NewsletterTag,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_tag(
     data: NewsletterTagCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new tag.
@@ -514,7 +555,7 @@ def create_tag(
         description=tag.description,
         color=tag.color,
         created_at=tag.created_at,
-        subscriber_count=0
+        subscriber_count=0,
     )
 
 
@@ -523,7 +564,7 @@ def update_tag(
     tag_id: int,
     data: NewsletterTagUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a tag.
@@ -544,7 +585,7 @@ def update_tag(
         description=tag.description,
         color=tag.color,
         created_at=tag.created_at,
-        subscriber_count=count
+        subscriber_count=count,
     )
 
 
@@ -552,7 +593,7 @@ def update_tag(
 def delete_tag(
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a tag.
@@ -569,11 +610,12 @@ def delete_tag(
 # EMAIL TEMPLATE ENDPOINTS (Admin)
 # ========================================
 
+
 @router.get("/newsletter/templates", response_model=EmailTemplateListResponse)
 def get_templates(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all email templates.
@@ -584,16 +626,19 @@ def get_templates(
 
     templates, total = newsletter_crud.get_templates(db, active_only=active_only)
     return EmailTemplateListResponse(
-        items=[EmailTemplate.model_validate(t) for t in templates],
-        total=total
+        items=[EmailTemplate.model_validate(t) for t in templates], total=total
     )
 
 
-@router.post("/newsletter/templates", response_model=EmailTemplate, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/newsletter/templates",
+    response_model=EmailTemplate,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_template(
     data: EmailTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new email template.
@@ -610,7 +655,7 @@ def create_template(
 def get_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get a specific template.
@@ -631,7 +676,7 @@ def update_template(
     template_id: int,
     data: EmailTemplateUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a template.
@@ -647,11 +692,13 @@ def update_template(
     return EmailTemplate.model_validate(template)
 
 
-@router.delete("/newsletter/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/newsletter/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a template.
@@ -668,13 +715,14 @@ def delete_template(
 # CAMPAIGN ENDPOINTS (Admin)
 # ========================================
 
+
 @router.get("/newsletter/campaigns", response_model=CampaignListResponse)
 def get_campaigns(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     status: Optional[CampaignStatus] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all campaigns.
@@ -683,29 +731,38 @@ def get_campaigns(
     """
     require_admin(current_user)
 
-    campaigns, total = newsletter_crud.get_campaigns(db, skip=skip, limit=limit, status=status)
+    campaigns, total = newsletter_crud.get_campaigns(
+        db, skip=skip, limit=limit, status=status
+    )
 
-    items = [CampaignSummary(
-        id=c.id,
-        name=c.name,
-        subject=c.subject,
-        status=c.status,
-        scheduled_at=c.scheduled_at,
-        sent_at=c.sent_at,
-        total_recipients=c.total_recipients,
-        total_opened=c.total_opened,
-        total_clicked=c.total_clicked,
-        created_at=c.created_at
-    ) for c in campaigns]
+    items = [
+        CampaignSummary(
+            id=c.id,
+            name=c.name,
+            subject=c.subject,
+            status=c.status,
+            scheduled_at=c.scheduled_at,
+            sent_at=c.sent_at,
+            total_recipients=c.total_recipients,
+            total_opened=c.total_opened,
+            total_clicked=c.total_clicked,
+            created_at=c.created_at,
+        )
+        for c in campaigns
+    ]
 
     return CampaignListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
-@router.post("/newsletter/campaigns", response_model=Campaign, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/newsletter/campaigns",
+    response_model=Campaign,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_campaign(
     data: CampaignCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new campaign.
@@ -722,7 +779,7 @@ def create_campaign(
 def get_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get a specific campaign.
@@ -743,7 +800,7 @@ def update_campaign(
     campaign_id: int,
     data: CampaignUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a campaign (draft only).
@@ -756,17 +813,19 @@ def update_campaign(
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign not found or cannot be updated (not in draft status)"
+            detail="Campaign not found or cannot be updated (not in draft status)",
         )
 
     return Campaign.model_validate(campaign)
 
 
-@router.delete("/newsletter/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/newsletter/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a campaign (draft only).
@@ -778,7 +837,7 @@ def delete_campaign(
     if not newsletter_crud.delete_campaign(db, campaign_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign not found or cannot be deleted (not in draft status)"
+            detail="Campaign not found or cannot be deleted (not in draft status)",
         )
 
 
@@ -787,7 +846,7 @@ def schedule_campaign(
     campaign_id: int,
     data: CampaignScheduleRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Schedule a campaign for future sending.
@@ -800,7 +859,7 @@ def schedule_campaign(
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign not found, not in draft status, or scheduled time is invalid"
+            detail="Campaign not found, not in draft status, or scheduled time is invalid",
         )
 
     return Campaign.model_validate(campaign)
@@ -810,7 +869,7 @@ def schedule_campaign(
 async def send_campaign_now(
     campaign_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Send a campaign immediately.
@@ -823,7 +882,7 @@ async def send_campaign_now(
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign not found or cannot be sent"
+            detail="Campaign not found or cannot be sent",
         )
 
     return Campaign.model_validate(campaign)
@@ -833,7 +892,7 @@ async def send_campaign_now(
 def cancel_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Cancel a scheduled campaign.
@@ -846,7 +905,7 @@ def cancel_campaign(
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign not found or cannot be cancelled"
+            detail="Campaign not found or cannot be cancelled",
         )
 
     return Campaign.model_validate(campaign)
@@ -857,7 +916,7 @@ async def send_test_email(
     campaign_id: int,
     data: CampaignTestRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Send a test email for a campaign.
@@ -870,7 +929,7 @@ async def send_test_email(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send test email"
+            detail="Failed to send test email",
         )
 
     return {"message": f"Test email sent to {data.test_email}"}
@@ -880,7 +939,7 @@ async def send_test_email(
 def get_campaign_stats(
     campaign_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get detailed statistics for a campaign.
@@ -896,14 +955,17 @@ def get_campaign_stats(
     return CampaignStats(**stats)
 
 
-@router.get("/newsletter/campaigns/{campaign_id}/recipients", response_model=CampaignRecipientListResponse)
+@router.get(
+    "/newsletter/campaigns/{campaign_id}/recipients",
+    response_model=CampaignRecipientListResponse,
+)
 def get_campaign_recipients(
     campaign_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     status: Optional[RecipientStatus] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get recipients for a campaign with their status.
@@ -919,29 +981,30 @@ def get_campaign_recipients(
     items = []
     for r in recipients:
         subscriber = newsletter_crud.get_subscriber(db, r.subscriber_id)
-        items.append(CampaignRecipient(
-            id=r.id,
-            subscriber_email=subscriber.email if subscriber else "Unknown",
-            subscriber_name=subscriber.name if subscriber else None,
-            status=r.status,
-            sent_at=r.sent_at,
-            opened_at=r.opened_at,
-            clicked_at=r.clicked_at
-        ))
+        items.append(
+            CampaignRecipient(
+                id=r.id,
+                subscriber_email=subscriber.email if subscriber else "Unknown",
+                subscriber_name=subscriber.name if subscriber else None,
+                status=r.status,
+                sent_at=r.sent_at,
+                opened_at=r.opened_at,
+                clicked_at=r.clicked_at,
+            )
+        )
 
-    return CampaignRecipientListResponse(items=items, total=total, skip=skip, limit=limit)
+    return CampaignRecipientListResponse(
+        items=items, total=total, skip=skip, limit=limit
+    )
 
 
 # ========================================
 # TRACKING ENDPOINTS (Public, no auth)
 # ========================================
 
+
 @router.get("/newsletter/track/open/{token}")
-def track_email_open(
-    token: str,
-    request: Request,
-    db: Session = Depends(get_db)
-):
+def track_email_open(token: str, request: Request, db: Session = Depends(get_db)):
     """
     Track email open (returns 1x1 transparent pixel).
 
@@ -959,10 +1022,7 @@ def track_email_open(
 
 @router.get("/newsletter/track/click/{token}")
 def track_link_click(
-    token: str,
-    url: str,
-    request: Request,
-    db: Session = Depends(get_db)
+    token: str, url: str, request: Request, db: Session = Depends(get_db)
 ):
     """
     Track link click and redirect to destination.

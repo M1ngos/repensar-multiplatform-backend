@@ -3,15 +3,33 @@ Sync router for offline-first functionality
 Supports incremental sync for desktop and mobile platforms
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, and_, or_, col
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Type
+
+logger = logging.getLogger(__name__)
+
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.models.analytics import NotificationType
-from app.models.sync import Device, DeviceSyncState, SyncConflict, DeviceType, DevicePlatform, ConflictResolution
-from app.models.volunteer import Volunteer, VolunteerSkill, VolunteerSkillAssignment, VolunteerTimeLog, VolunteerTraining, VolunteerTrainingRecord
+from app.models.sync import (
+    Device,
+    DeviceSyncState,
+    SyncConflict,
+    DeviceType,
+    DevicePlatform,
+    ConflictResolution,
+)
+from app.models.volunteer import (
+    Volunteer,
+    VolunteerSkill,
+    VolunteerSkillAssignment,
+    VolunteerTimeLog,
+    VolunteerTraining,
+    VolunteerTrainingRecord,
+)
 from app.models.project import Project, ProjectTeam, Milestone, EnvironmentalMetric
 from app.models.task import Task, TaskDependency
 from app.models.resource import Resource, ProjectResource
@@ -31,7 +49,7 @@ from app.schemas.sync import (
     ConflictResolutionStrategy,
     SyncStatusResponse,
     EntitySyncState,
-    ConflictListResponse
+    ConflictListResponse,
 )
 from app.services.notification_service import NotificationService, notify_sync_conflict
 from app.services.event_bus import EventType, get_event_bus
@@ -68,27 +86,27 @@ def get_timestamp_field(model: Type) -> str:
     Get the timestamp field name for a model
     Prefers: last_modified_at > updated_at > created_at
     """
-    if hasattr(model, 'last_modified_at'):
-        return 'last_modified_at'
-    elif hasattr(model, 'updated_at'):
-        return 'updated_at'
-    elif hasattr(model, 'created_at'):
-        return 'created_at'
+    if hasattr(model, "last_modified_at"):
+        return "last_modified_at"
+    elif hasattr(model, "updated_at"):
+        return "updated_at"
+    elif hasattr(model, "created_at"):
+        return "created_at"
     else:
         raise ValueError(f"Model {model} has no timestamp field")
 
 
 def get_version_field(model: Type) -> Optional[str]:
     """Get the version field name if it exists"""
-    if hasattr(model, 'version'):
-        return 'version'
+    if hasattr(model, "version"):
+        return "version"
     return None
 
 
 def get_soft_delete_fields(model: Type) -> tuple[Optional[str], Optional[str]]:
     """Get soft delete field names if they exist (is_deleted, deleted_at)"""
-    is_deleted = 'is_deleted' if hasattr(model, 'is_deleted') else None
-    deleted_at = 'deleted_at' if hasattr(model, 'deleted_at') else None
+    is_deleted = "is_deleted" if hasattr(model, "is_deleted") else None
+    deleted_at = "deleted_at" if hasattr(model, "deleted_at") else None
     return is_deleted, deleted_at
 
 
@@ -96,11 +114,12 @@ def get_soft_delete_fields(model: Type) -> tuple[Optional[str], Optional[str]]:
 # Device Management
 # ===========================
 
+
 @router.post("/device/register", response_model=DeviceRegistrationResponse)
 async def register_device(
     device_data: DeviceRegistration,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Register or update a device for sync.
@@ -120,7 +139,7 @@ async def register_device(
         if device.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Device belongs to another user"
+                detail="Device belongs to another user",
             )
 
         device.device_name = device_data.device_name
@@ -145,7 +164,7 @@ async def register_device(
             push_token=device_data.push_token,
             last_seen_at=now,
             is_active=True,
-            registered_at=now
+            registered_at=now,
         )
         db.add(device)
         message = "Device registered successfully"
@@ -157,7 +176,7 @@ async def register_device(
         device_id=device.device_id,
         registered_at=device.registered_at,
         last_sync_at=device.last_sync_at,
-        message=message
+        message=message,
     )
 
 
@@ -165,7 +184,7 @@ async def register_device(
 async def list_devices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    include_inactive: bool = Query(default=False)
+    include_inactive: bool = Query(default=False),
 ):
     """
     List all devices registered to the current user.
@@ -189,22 +208,19 @@ async def list_devices(
             last_sync_at=d.last_sync_at,
             last_seen_at=d.last_seen_at,
             is_active=d.is_active,
-            registered_at=d.registered_at
+            registered_at=d.registered_at,
         )
         for d in devices
     ]
 
-    return DeviceListResponse(
-        devices=device_infos,
-        total=len(device_infos)
-    )
+    return DeviceListResponse(devices=device_infos, total=len(device_infos))
 
 
 @router.post("/device/{device_id}/revoke", status_code=status.HTTP_200_OK)
 async def revoke_device(
     device_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Revoke a device (e.g., lost phone, stolen laptop).
@@ -216,17 +232,13 @@ async def revoke_device(
     """
     device = db.exec(
         select(Device).where(
-            and_(
-                Device.device_id == device_id,
-                Device.user_id == current_user.id
-            )
+            and_(Device.device_id == device_id, Device.user_id == current_user.id)
         )
     ).first()
 
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Device not found"
         )
 
     device.is_active = False
@@ -234,7 +246,7 @@ async def revoke_device(
 
     return {
         "message": f"Device '{device.device_name}' revoked successfully",
-        "device_id": device_id
+        "device_id": device_id,
     }
 
 
@@ -242,11 +254,12 @@ async def revoke_device(
 # Sync Pull (Server → Client)
 # ===========================
 
+
 @router.post("/pull", response_model=SyncPullResponse)
 async def pull_changes(
     request: SyncPullRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Pull changes from server since last sync (incremental sync).
@@ -270,7 +283,7 @@ async def pull_changes(
             and_(
                 Device.device_id == request.device_id,
                 Device.user_id == current_user.id,
-                Device.is_active == True
+                Device.is_active == True,
             )
         )
     ).first()
@@ -278,7 +291,7 @@ async def pull_changes(
     if not device:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device not registered or inactive. Please register device first."
+            detail="Device not registered or inactive. Please register device first.",
         )
 
     all_changes: List[EntityChange] = []
@@ -298,7 +311,7 @@ async def pull_changes(
             select(DeviceSyncState).where(
                 and_(
                     DeviceSyncState.device_id == request.device_id,
-                    DeviceSyncState.entity_type == entity_type
+                    DeviceSyncState.entity_type == entity_type,
                 )
             )
         ).first()
@@ -339,7 +352,11 @@ async def pull_changes(
             modified_at = getattr(entity, timestamp_field)
 
             # Get modified_by_device_id if available
-            modified_by = getattr(entity, 'modified_by_device_id', None) if hasattr(entity, 'modified_by_device_id') else None
+            modified_by = (
+                getattr(entity, "modified_by_device_id", None)
+                if hasattr(entity, "modified_by_device_id")
+                else None
+            )
 
             # Convert entity to dict (only if not deleted)
             entity_data = {}
@@ -359,7 +376,7 @@ async def pull_changes(
                     data=entity_data,
                     version=version,
                     modified_at=modified_at,
-                    modified_by_device_id=modified_by
+                    modified_by_device_id=modified_by,
                 )
             )
 
@@ -369,13 +386,19 @@ async def pull_changes(
                 device_id=request.device_id,
                 entity_type=entity_type,
                 last_synced_at=datetime.now(timezone.utc),
-                last_synced_version=max([getattr(e, version_field, 1) for e in entities], default=0) if version_field else 0
+                last_synced_version=max(
+                    [getattr(e, version_field, 1) for e in entities], default=0
+                )
+                if version_field
+                else 0,
             )
             db.add(sync_state)
         else:
             sync_state.last_synced_at = datetime.now(timezone.utc)
             if version_field and entities:
-                sync_state.last_synced_version = max([getattr(e, version_field, 1) for e in entities])
+                sync_state.last_synced_version = max(
+                    [getattr(e, version_field, 1) for e in entities]
+                )
 
     # Update device last_seen_at and last_sync_at
     now = datetime.now(timezone.utc)
@@ -388,7 +411,7 @@ async def pull_changes(
         changes=all_changes,
         sync_token=now,
         has_more=len(all_changes) >= limit,
-        total_changes=len(all_changes)
+        total_changes=len(all_changes),
     )
 
 
@@ -396,11 +419,12 @@ async def pull_changes(
 # Sync Push (Client → Server)
 # ===========================
 
+
 @router.post("/push", response_model=SyncPushResponse)
 async def push_changes(
     request: SyncPushRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Push local changes to server with conflict detection.
@@ -422,7 +446,7 @@ async def push_changes(
             and_(
                 Device.device_id == request.device_id,
                 Device.user_id == current_user.id,
-                Device.is_active == True
+                Device.is_active == True,
             )
         )
     ).first()
@@ -430,7 +454,7 @@ async def push_changes(
     if not device:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Device not registered or inactive. Please register device first."
+            detail="Device not registered or inactive. Please register device first.",
         )
 
     conflicts: List[ConflictData] = []
@@ -473,7 +497,7 @@ async def push_changes(
                         server_data=server_entity.model_dump(),
                         client_timestamp=change.modified_at,
                         server_timestamp=server_timestamp,
-                        resolution=ConflictResolution.SERVER_WINS  # Default
+                        resolution=ConflictResolution.SERVER_WINS,  # Default
                     )
                     db.add(conflict_record)
                     db.flush()  # Get the ID
@@ -491,7 +515,7 @@ async def push_changes(
                             client_modified_at=change.modified_at,
                             server_modified_at=server_timestamp,
                             conflict_type="version_mismatch",
-                            suggested_resolution=ConflictResolutionStrategy.SERVER_WINS
+                            suggested_resolution=ConflictResolutionStrategy.SERVER_WINS,
                         )
                     )
                     continue  # Skip applying this change
@@ -503,7 +527,7 @@ async def push_changes(
                 if version_field:
                     setattr(new_entity, version_field, 1)
                 setattr(new_entity, timestamp_field, datetime.now(timezone.utc))
-                if hasattr(new_entity, 'modified_by_device_id'):
+                if hasattr(new_entity, "modified_by_device_id"):
                     new_entity.modified_by_device_id = request.device_id
 
                 db.add(new_entity)
@@ -516,15 +540,23 @@ async def push_changes(
                     if version_field:
                         setattr(new_entity, version_field, 1)
                     setattr(new_entity, timestamp_field, datetime.now(timezone.utc))
-                    if hasattr(new_entity, 'modified_by_device_id'):
+                    if hasattr(new_entity, "modified_by_device_id"):
                         new_entity.modified_by_device_id = request.device_id
                     db.add(new_entity)
                 else:
                     # Update existing entity
                     for key, value in change.data.items():
-                        if hasattr(server_entity, key) and key not in ['id', 'created_at']:
+                        if hasattr(server_entity, key) and key not in [
+                            "id",
+                            "created_at",
+                        ]:
                             # Skip read-only fields
-                            if key in ['version', 'updated_at', 'last_modified_at', 'modified_by_device_id']:
+                            if key in [
+                                "version",
+                                "updated_at",
+                                "last_modified_at",
+                                "modified_by_device_id",
+                            ]:
                                 continue
                             setattr(server_entity, key, value)
 
@@ -537,7 +569,7 @@ async def push_changes(
                     setattr(server_entity, timestamp_field, datetime.now(timezone.utc))
 
                     # Track device
-                    if hasattr(server_entity, 'modified_by_device_id'):
+                    if hasattr(server_entity, "modified_by_device_id"):
                         server_entity.modified_by_device_id = request.device_id
 
                 applied_count += 1
@@ -548,11 +580,17 @@ async def push_changes(
                         # Soft delete
                         setattr(server_entity, is_deleted_field, True)
                         if deleted_at_field:
-                            setattr(server_entity, deleted_at_field, datetime.now(timezone.utc))
+                            setattr(
+                                server_entity,
+                                deleted_at_field,
+                                datetime.now(timezone.utc),
+                            )
                         if version_field:
                             current_version = getattr(server_entity, version_field, 0)
                             setattr(server_entity, version_field, current_version + 1)
-                        setattr(server_entity, timestamp_field, datetime.now(timezone.utc))
+                        setattr(
+                            server_entity, timestamp_field, datetime.now(timezone.utc)
+                        )
                     else:
                         # Hard delete
                         db.delete(server_entity)
@@ -561,7 +599,12 @@ async def push_changes(
 
         except Exception as e:
             # Log error and continue
-            print(f"Error applying change for {change.entity_type} {change.entity_id}: {str(e)}")
+            logger.error(
+                "Error applying change for %s %s: %s",
+                change.entity_type,
+                change.entity_id,
+                e,
+            )
             failed_count += 1
 
     # Update device
@@ -572,10 +615,7 @@ async def push_changes(
     db.commit()
 
     return SyncPushResponse(
-        applied=applied_count,
-        conflicts=conflicts,
-        failed=failed_count,
-        sync_token=now
+        applied=applied_count, conflicts=conflicts, failed=failed_count, sync_token=now
     )
 
 
@@ -583,12 +623,13 @@ async def push_changes(
 # Conflict Resolution
 # ===========================
 
+
 @router.get("/conflicts", response_model=ConflictListResponse)
 async def get_conflicts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     device_id: Optional[str] = Query(None),
-    unresolved_only: bool = Query(True)
+    unresolved_only: bool = Query(True),
 ):
     """
     Get sync conflicts for user's devices.
@@ -603,9 +644,7 @@ async def get_conflicts(
         select(Device.device_id).where(Device.user_id == current_user.id)
     ).all()
 
-    query = select(SyncConflict).where(
-        SyncConflict.device_id.in_(user_devices)
-    )
+    query = select(SyncConflict).where(SyncConflict.device_id.in_(user_devices))
 
     if device_id:
         query = query.where(SyncConflict.device_id == device_id)
@@ -627,7 +666,7 @@ async def get_conflicts(
             client_modified_at=c.client_timestamp,
             server_modified_at=c.server_timestamp,
             conflict_type=c.conflict_type,
-            suggested_resolution=ConflictResolutionStrategy.SERVER_WINS
+            suggested_resolution=ConflictResolutionStrategy.SERVER_WINS,
         )
         for c in conflicts_db
     ]
@@ -635,11 +674,7 @@ async def get_conflicts(
     total = len(conflicts)
     unresolved = sum(1 for c in conflicts_db if c.resolved_at is None)
 
-    return ConflictListResponse(
-        conflicts=conflicts,
-        total=total,
-        unresolved=unresolved
-    )
+    return ConflictListResponse(conflicts=conflicts, total=total, unresolved=unresolved)
 
 
 @router.post("/conflicts/{conflict_id}/resolve", status_code=status.HTTP_200_OK)
@@ -647,7 +682,7 @@ async def resolve_conflict(
     conflict_id: str,
     resolution_request: ConflictResolutionRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Manually resolve a sync conflict.
@@ -663,8 +698,7 @@ async def resolve_conflict(
 
     if not conflict:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conflict not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found"
         )
 
     # Verify ownership
@@ -675,25 +709,22 @@ async def resolve_conflict(
     if not device or device.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to resolve this conflict"
+            detail="Not authorized to resolve this conflict",
         )
 
     # Get entity model
     if conflict.entity_type not in ENTITY_MODELS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown entity type: {conflict.entity_type}"
+            detail=f"Unknown entity type: {conflict.entity_type}",
         )
 
     model = ENTITY_MODELS[conflict.entity_type]
-    entity = db.exec(
-        select(model).where(model.id == int(conflict.entity_id))
-    ).first()
+    entity = db.exec(select(model).where(model.id == int(conflict.entity_id))).first()
 
     if not entity:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Entity not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found"
         )
 
     # Apply resolution
@@ -703,7 +734,13 @@ async def resolve_conflict(
     if resolution_request.resolution == ConflictResolutionStrategy.CLIENT_WINS:
         # Apply client data
         for key, value in conflict.client_data.items():
-            if hasattr(entity, key) and key not in ['id', 'created_at', 'version', 'updated_at', 'last_modified_at']:
+            if hasattr(entity, key) and key not in [
+                "id",
+                "created_at",
+                "version",
+                "updated_at",
+                "last_modified_at",
+            ]:
                 setattr(entity, key, value)
 
         if version_field:
@@ -720,11 +757,11 @@ async def resolve_conflict(
         if not resolution_request.merged_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="merged_data required for MANUAL resolution"
+                detail="merged_data required for MANUAL resolution",
             )
 
         for key, value in resolution_request.merged_data.items():
-            if hasattr(entity, key) and key not in ['id', 'created_at']:
+            if hasattr(entity, key) and key not in ["id", "created_at"]:
                 setattr(entity, key, value)
 
         if version_field:
@@ -744,7 +781,7 @@ async def resolve_conflict(
         user_id=current_user.id,
         title="Sync Conflict Resolved",
         message=f"Conflict in {conflict.entity_type} (ID: {conflict.entity_id}) has been resolved using {resolution_request.resolution.value} strategy.",
-        notification_type=NotificationType.success
+        notification_type=NotificationType.success,
     )
 
     # Publish event
@@ -758,9 +795,9 @@ async def resolve_conflict(
                 "entity_id": conflict.entity_id,
                 "resolution": resolution_request.resolution.value,
                 "device_id": conflict.device_id,
-                "resolved_by": current_user.id
+                "resolved_by": current_user.id,
             },
-            user_id=current_user.id
+            user_id=current_user.id,
         )
     except Exception as e:
         pass
@@ -770,7 +807,7 @@ async def resolve_conflict(
         "conflict_id": conflict_id,
         "resolution": resolution_request.resolution,
         "entity_type": conflict.entity_type,
-        "entity_id": conflict.entity_id
+        "entity_id": conflict.entity_id,
     }
 
 
@@ -778,11 +815,12 @@ async def resolve_conflict(
 # Sync Status & Diagnostics
 # ===========================
 
+
 @router.get("/status", response_model=SyncStatusResponse)
 async def sync_status(
     device_id: str = Query(..., description="Device ID to check status for"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get comprehensive sync status for a device.
@@ -795,31 +833,25 @@ async def sync_status(
     """
     device = db.exec(
         select(Device).where(
-            and_(
-                Device.device_id == device_id,
-                Device.user_id == current_user.id
-            )
+            and_(Device.device_id == device_id, Device.user_id == current_user.id)
         )
     ).first()
 
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Device not found"
         )
 
     # Get sync states
     sync_states = db.exec(
-        select(DeviceSyncState).where(
-            DeviceSyncState.device_id == device_id
-        )
+        select(DeviceSyncState).where(DeviceSyncState.device_id == device_id)
     ).all()
 
     entity_sync_states = [
         EntitySyncState(
             entity_type=s.entity_type,
             last_synced_at=s.last_synced_at,
-            last_synced_version=s.last_synced_version
+            last_synced_version=s.last_synced_version,
         )
         for s in sync_states
     ]
@@ -828,16 +860,15 @@ async def sync_status(
     pending_conflicts_count = db.exec(
         select(SyncConflict).where(
             and_(
-                SyncConflict.device_id == device_id,
-                SyncConflict.resolved_at.is_(None)
+                SyncConflict.device_id == device_id, SyncConflict.resolved_at.is_(None)
             )
         )
     ).all()
 
     # Determine if sync is needed (hasn't synced in over 1 hour)
     needs_sync = (
-        device.last_sync_at is None or
-        (datetime.now(timezone.utc) - device.last_sync_at).total_seconds() > 3600
+        device.last_sync_at is None
+        or (datetime.now(timezone.utc) - device.last_sync_at).total_seconds() > 3600
     )
 
     device_info = DeviceInfo(
@@ -850,7 +881,7 @@ async def sync_status(
         last_sync_at=device.last_sync_at,
         last_seen_at=device.last_seen_at,
         is_active=device.is_active,
-        registered_at=device.registered_at
+        registered_at=device.registered_at,
     )
 
     return SyncStatusResponse(
@@ -858,5 +889,5 @@ async def sync_status(
         sync_states=entity_sync_states,
         pending_conflicts=len(pending_conflicts_count),
         needs_sync=needs_sync,
-        last_successful_sync=device.last_sync_at
+        last_successful_sync=device.last_sync_at,
     )

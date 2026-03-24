@@ -3,19 +3,59 @@
 Analytics Service for automatic metric tracking and activity logging.
 Integrates with EventBus to record metrics when key events occur.
 """
+
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from sqlmodel import Session, select
+from sqlalchemy import text
 
-from app.models.analytics import (
-    ActivityLog,
-    MetricSnapshot,
-    MetricType
-)
+from app.models.analytics import ActivityLog, MetricSnapshot, MetricType
 from app.services.event_bus import EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_activity_log_partition(db: Session, dt: datetime) -> None:
+    """Create the monthly activity_log partition for *dt* if it does not exist.
+
+    Uses ``to_regclass`` for an idempotent, lock-free existence check before
+    calling the ``create_monthly_partition`` PostgreSQL helper function that was
+    defined in the initial schema migration.  If the function is unavailable
+    for any reason, the error is logged and swallowed — the DEFAULT partition
+    will catch the row instead, so the caller is never blocked.
+    """
+    partition_name = f"activity_logs_y{dt.year}m{dt.month:02d}"
+    try:
+        result = db.exec(
+            text("SELECT to_regclass(:name)").bindparams(name=partition_name)
+        ).first()
+        # to_regclass returns NULL when the relation does not exist
+        if result is None or result[0] is None:
+            logger.info("Creating missing activity_log partition: %s", partition_name)
+            from calendar import monthrange
+
+            _, last_day = monthrange(dt.year, dt.month)
+            start_date = dt.replace(day=1).date()
+            next_month = dt.month + 1
+            next_year = dt.year
+            if next_month > 12:
+                next_month = 1
+                next_year += 1
+            end_date = dt.replace(year=next_year, month=next_month, day=1).date()
+            db.exec(
+                text(
+                    "SELECT create_monthly_partition('activity_logs', :start_date)"
+                ).bindparams(start_date=start_date)
+            )
+            db.commit()
+            logger.info("Partition %s created successfully", partition_name)
+    except Exception as exc:
+        logger.warning(
+            "Could not auto-create activity_log partition %s (DEFAULT partition will be used): %s",
+            partition_name,
+            exc,
+        )
 
 
 class AnalyticsService:
@@ -34,7 +74,7 @@ class AnalyticsService:
         new_values: Optional[Dict[str, Any]] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
-        broadcast: bool = False
+        broadcast: bool = False,
     ) -> ActivityLog:
         """
         Create an activity log entry.
@@ -56,6 +96,9 @@ class AnalyticsService:
         Returns:
             Created ActivityLog object
         """
+        now = datetime.utcnow()
+        _ensure_activity_log_partition(db, now)
+
         activity_log = ActivityLog(
             user_id=user_id,
             project_id=project_id,
@@ -66,7 +109,8 @@ class AnalyticsService:
             old_values=old_values,
             new_values=new_values,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            created_at=now,
         )
 
         db.add(activity_log)
@@ -86,9 +130,9 @@ class AnalyticsService:
                         "description": description,
                         "user_id": user_id,
                         "project_id": project_id,
-                        "task_id": task_id
+                        "task_id": task_id,
                     },
-                    user_id=user_id
+                    user_id=user_id,
                 )
             except Exception as e:
                 logger.error(f"Failed to broadcast activity log: {e}")
@@ -107,7 +151,7 @@ class AnalyticsService:
         volunteer_id: Optional[int] = None,
         recorded_by_id: Optional[int] = None,
         metric_metadata: Optional[Dict[str, Any]] = None,
-        snapshot_date: Optional[datetime] = None
+        snapshot_date: Optional[datetime] = None,
     ) -> MetricSnapshot:
         """
         Record a metric snapshot.
@@ -138,7 +182,7 @@ class AnalyticsService:
             volunteer_id=volunteer_id,
             recorded_by_id=recorded_by_id,
             metric_metadata=metric_metadata,
-            snapshot_date=snapshot_date or datetime.utcnow()
+            snapshot_date=snapshot_date or datetime.utcnow(),
         )
 
         db.add(metric)
@@ -160,9 +204,9 @@ class AnalyticsService:
                     "unit": unit,
                     "project_id": project_id,
                     "task_id": task_id,
-                    "volunteer_id": volunteer_id
+                    "volunteer_id": volunteer_id,
                 },
-                user_id=recorded_by_id
+                user_id=recorded_by_id,
             )
         except Exception as e:
             logger.error(f"Failed to broadcast metric event: {e}")
@@ -178,7 +222,7 @@ class AnalyticsService:
         volunteer_id: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[MetricSnapshot]:
         """
         Query metrics with filters.
@@ -225,7 +269,7 @@ class AnalyticsService:
         volunteer_id: Optional[int] = None,
         action: Optional[str] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> tuple[List[ActivityLog], int]:
         """
         Query activity logs with filters and pagination.
@@ -260,7 +304,9 @@ class AnalyticsService:
         total = len(db.exec(query).all())
 
         # Add ordering and pagination
-        query = query.order_by(ActivityLog.created_at.desc()).offset(offset).limit(limit)
+        query = (
+            query.order_by(ActivityLog.created_at.desc()).offset(offset).limit(limit)
+        )
 
         logs = db.exec(query).all()
         return list(logs), total
@@ -268,7 +314,10 @@ class AnalyticsService:
 
 # Convenience functions for common analytics patterns
 
-async def track_task_completion(db: Session, task_id: int, project_id: Optional[int] = None):
+
+async def track_task_completion(
+    db: Session, task_id: int, project_id: Optional[int] = None
+):
     """Track a task completion metric."""
     return await AnalyticsService.record_metric(
         db=db,
@@ -277,7 +326,7 @@ async def track_task_completion(db: Session, task_id: int, project_id: Optional[
         value=1.0,
         unit="count",
         task_id=task_id,
-        project_id=project_id
+        project_id=project_id,
     )
 
 
@@ -286,7 +335,7 @@ async def track_volunteer_hours(
     volunteer_id: int,
     hours: float,
     project_id: Optional[int] = None,
-    task_id: Optional[int] = None
+    task_id: Optional[int] = None,
 ):
     """Track volunteer hours worked."""
     return await AnalyticsService.record_metric(
@@ -297,7 +346,7 @@ async def track_volunteer_hours(
         unit="hours",
         volunteer_id=volunteer_id,
         project_id=project_id,
-        task_id=task_id
+        task_id=task_id,
     )
 
 
@@ -305,7 +354,7 @@ async def track_project_progress(
     db: Session,
     project_id: int,
     progress_percentage: float,
-    recorded_by_id: Optional[int] = None
+    recorded_by_id: Optional[int] = None,
 ):
     """Track project progress percentage."""
     return await AnalyticsService.record_metric(
@@ -315,15 +364,12 @@ async def track_project_progress(
         value=progress_percentage,
         unit="percentage",
         project_id=project_id,
-        recorded_by_id=recorded_by_id
+        recorded_by_id=recorded_by_id,
     )
 
 
 async def log_volunteer_registration(
-    db: Session,
-    volunteer_id: int,
-    user_id: int,
-    ip_address: Optional[str] = None
+    db: Session, volunteer_id: int, user_id: int, ip_address: Optional[str] = None
 ):
     """Log a volunteer registration event."""
     return await AnalyticsService.log_activity(
@@ -332,7 +378,7 @@ async def log_volunteer_registration(
         description="New volunteer registered",
         user_id=user_id,
         volunteer_id=volunteer_id,
-        ip_address=ip_address
+        ip_address=ip_address,
     )
 
 
@@ -341,7 +387,7 @@ async def log_task_assignment(
     task_id: int,
     volunteer_id: int,
     assigned_by_id: int,
-    project_id: Optional[int] = None
+    project_id: Optional[int] = None,
 ):
     """Log a task assignment event."""
     return await AnalyticsService.log_activity(
@@ -351,5 +397,5 @@ async def log_task_assignment(
         user_id=assigned_by_id,
         task_id=task_id,
         volunteer_id=volunteer_id,
-        project_id=project_id
+        project_id=project_id,
     )

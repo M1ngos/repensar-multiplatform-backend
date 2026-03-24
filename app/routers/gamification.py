@@ -62,6 +62,21 @@ from app.schemas.gamification import (
 
 logger = logging.getLogger(__name__)
 
+
+def _ranking_get(ranking, key: str):
+    """Safely retrieve a field from a ranking entry.
+
+    Rankings stored as JSON in the ORM model are plain dicts when loaded from
+    the database.  However, when the Pydantic response schema ``Leaderboard``
+    is used directly (e.g. in tests or after FastAPI serialisation), the
+    entries are coerced to ``LeaderboardRanking`` model objects.  This helper
+    handles both representations transparently.
+    """
+    if isinstance(ranking, dict):
+        return ranking.get(key)
+    return getattr(ranking, key, None)
+
+
 router = APIRouter(
     prefix="/gamification",
     tags=["gamification"],
@@ -209,15 +224,24 @@ async def delete_badge(
 # ============================================================
 
 
-@router.get("/volunteers/{volunteer_id}/badges", response_model=VolunteerBadgeCollection)
+@router.get(
+    "/volunteers/{volunteer_id}/badges", response_model=VolunteerBadgeCollection
+)
 async def get_volunteer_badges(
     volunteer_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get all badges earned by a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own badges, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view these badges",
@@ -288,9 +312,7 @@ async def award_badge_to_volunteer(
         )
         return result
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error awarding badge: {e}")
         raise HTTPException(
@@ -308,8 +330,15 @@ async def toggle_badge_showcase(
     db: Session = Depends(get_db),
 ):
     """Toggle badge showcase status."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Only the volunteer themselves can toggle showcase
-    if current_user.id != volunteer_id:
+    if volunteer.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only showcase your own badges",
@@ -324,7 +353,10 @@ async def toggle_badge_showcase(
             detail="You haven't earned this badge",
         )
 
-    return {"message": "Badge showcase updated", "is_showcased": toggle_data.is_showcased}
+    return {
+        "message": "Badge showcase updated",
+        "is_showcased": toggle_data.is_showcased,
+    }
 
 
 # ============================================================
@@ -440,7 +472,9 @@ async def update_achievement(
             detail="Only administrators can update achievements",
         )
 
-    achievement = achievement_crud.update_achievement(db, achievement_id, achievement_data)
+    achievement = achievement_crud.update_achievement(
+        db, achievement_id, achievement_data
+    )
     if not achievement:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Achievement not found"
@@ -477,7 +511,8 @@ async def delete_achievement(
 
 
 @router.get(
-    "/volunteers/{volunteer_id}/achievements", response_model=VolunteerAchievementProgress
+    "/volunteers/{volunteer_id}/achievements",
+    response_model=VolunteerAchievementProgress,
 )
 async def get_volunteer_achievements(
     volunteer_id: int,
@@ -485,8 +520,15 @@ async def get_volunteer_achievements(
     db: Session = Depends(get_db),
 ):
     """Get achievement progress for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own progress, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this progress",
@@ -580,8 +622,15 @@ async def get_achievement_progress(
     db: Session = Depends(get_db),
 ):
     """Get specific achievement progress for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own progress, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this progress",
@@ -599,7 +648,9 @@ async def get_achievement_progress(
 
     # Calculate progress percentage
     if progress.target_progress > 0:
-        progress_pct = float((progress.current_progress / progress.target_progress) * 100)
+        progress_pct = float(
+            (progress.current_progress / progress.target_progress) * 100
+        )
         progress_pct = min(progress_pct, 100.0)
     else:
         progress_pct = 0.0
@@ -648,8 +699,15 @@ async def get_volunteer_points(
     db: Session = Depends(get_db),
 ):
     """Get points summary for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own points, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view these points",
@@ -690,7 +748,9 @@ async def get_volunteer_points(
     )
 
 
-@router.get("/volunteers/{volunteer_id}/points/history", response_model=List[PointsHistoryEntry])
+@router.get(
+    "/volunteers/{volunteer_id}/points/history", response_model=List[PointsHistoryEntry]
+)
 async def get_points_history(
     volunteer_id: int,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -699,8 +759,15 @@ async def get_points_history(
     db: Session = Depends(get_db),
 ):
     """Get full points history for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own history, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this history",
@@ -710,7 +777,9 @@ async def get_points_history(
     return history
 
 
-@router.post("/volunteers/{volunteer_id}/points/award", response_model=PointsAwardResponse)
+@router.post(
+    "/volunteers/{volunteer_id}/points/award", response_model=PointsAwardResponse
+)
 async def award_points_manually(
     volunteer_id: int,
     award_data: PointsAwardRequest,
@@ -770,8 +839,15 @@ async def get_volunteer_streak(
     db: Session = Depends(get_db),
 ):
     """Get streak information for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own streak, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this streak",
@@ -814,9 +890,13 @@ async def get_global_rankings(
         if volunteer:
             user = db.get(User, volunteer.user_id)
             if user:
-                badges_count = volunteer_badge_crud.count_volunteer_badges(db, vp.volunteer_id)
-                achievements_count = volunteer_achievement_crud.count_completed_achievements(
+                badges_count = volunteer_badge_crud.count_volunteer_badges(
                     db, vp.volunteer_id
+                )
+                achievements_count = (
+                    volunteer_achievement_crud.count_completed_achievements(
+                        db, vp.volunteer_id
+                    )
                 )
 
                 rankings.append(
@@ -843,10 +923,13 @@ async def get_global_rankings(
 async def get_leaderboard(
     leaderboard_type: str,
     timeframe: str = Query("all_time", description="all_time, weekly, or monthly"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get leaderboard by type and timeframe."""
-    leaderboard = leaderboard_crud.get_current_leaderboard(db, leaderboard_type, timeframe)
+    leaderboard = leaderboard_crud.get_current_leaderboard(
+        db, leaderboard_type, timeframe
+    )
     if not leaderboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -889,8 +972,15 @@ async def get_volunteer_leaderboard_positions(
     db: Session = Depends(get_db),
 ):
     """Get volunteer's position across all leaderboards."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own position, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view these positions",
@@ -902,16 +992,18 @@ async def get_volunteer_leaderboard_positions(
 
     for lb_type in types:
         for timeframe in timeframes:
-            leaderboard = leaderboard_crud.get_current_leaderboard(db, lb_type, timeframe)
+            leaderboard = leaderboard_crud.get_current_leaderboard(
+                db, lb_type, timeframe
+            )
             if leaderboard:
                 # Find volunteer in rankings
                 volunteer_rank = None
                 volunteer_value = None
 
                 for ranking in leaderboard.rankings:
-                    if ranking["volunteer_id"] == volunteer_id:
-                        volunteer_rank = ranking["rank"]
-                        volunteer_value = ranking["value"]
+                    if _ranking_get(ranking, "volunteer_id") == volunteer_id:
+                        volunteer_rank = _ranking_get(ranking, "rank")
+                        volunteer_value = _ranking_get(ranking, "value")
                         break
 
                 # Calculate percentile if ranked
@@ -919,7 +1011,11 @@ async def get_volunteer_leaderboard_positions(
                 if volunteer_rank and leaderboard.total_participants > 0:
                     people_below = leaderboard.total_participants - volunteer_rank
                     percentile = Decimal(
-                        str(round((people_below / leaderboard.total_participants) * 100, 2))
+                        str(
+                            round(
+                                (people_below / leaderboard.total_participants) * 100, 2
+                            )
+                        )
                     )
 
                 positions.append(
@@ -959,7 +1055,12 @@ async def get_gamification_stats(
     total_achievements = achievement_crud.count_achievements(db, is_active=True)
 
     # Total points awarded
-    from app.models.gamification import PointsHistory, VolunteerBadge, VolunteerAchievement, VolunteerPoints
+    from app.models.gamification import (
+        PointsHistory,
+        VolunteerBadge,
+        VolunteerAchievement,
+        VolunteerPoints,
+    )
 
     statement = select(func.sum(PointsHistory.points_change)).where(
         PointsHistory.points_change > 0
@@ -985,7 +1086,9 @@ async def get_gamification_stats(
     # Average points per volunteer
     avg_points_per_volunteer = Decimal("0")
     if active_volunteers > 0:
-        avg_points_per_volunteer = Decimal(str(total_points_awarded / active_volunteers))
+        avg_points_per_volunteer = Decimal(
+            str(total_points_awarded / active_volunteers)
+        )
 
     # Most earned badge
     statement = (
@@ -1048,15 +1151,24 @@ async def get_gamification_stats(
     )
 
 
-@router.get("/stats/volunteer/{volunteer_id}", response_model=VolunteerGamificationSummary)
+@router.get(
+    "/stats/volunteer/{volunteer_id}", response_model=VolunteerGamificationSummary
+)
 async def get_volunteer_gamification_summary(
     volunteer_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get complete gamification summary for a volunteer."""
+    # Resolve volunteer record to validate existence and get user_id for auth check
+    volunteer = db.exec(select(Volunteer).where(Volunteer.id == volunteer_id)).first()
+    if not volunteer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found"
+        )
+
     # Volunteers can only view their own summary, admins can view all
-    if current_user.id != volunteer_id and current_user.user_type.name != "admin":
+    if volunteer.user_id != current_user.id and current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this summary",
@@ -1149,21 +1261,27 @@ async def get_volunteer_gamification_summary(
     leaderboard_positions = []
     for lb_type in ["points", "hours", "projects"]:
         for timeframe in ["all_time", "weekly", "monthly"]:
-            leaderboard = leaderboard_crud.get_current_leaderboard(db, lb_type, timeframe)
+            leaderboard = leaderboard_crud.get_current_leaderboard(
+                db, lb_type, timeframe
+            )
             if leaderboard:
                 volunteer_rank = None
                 volunteer_value = None
                 for ranking in leaderboard.rankings:
-                    if ranking["volunteer_id"] == volunteer_id:
-                        volunteer_rank = ranking["rank"]
-                        volunteer_value = ranking["value"]
+                    if _ranking_get(ranking, "volunteer_id") == volunteer_id:
+                        volunteer_rank = _ranking_get(ranking, "rank")
+                        volunteer_value = _ranking_get(ranking, "value")
                         break
 
                 percentile = None
                 if volunteer_rank and leaderboard.total_participants > 0:
                     people_below = leaderboard.total_participants - volunteer_rank
                     percentile = Decimal(
-                        str(round((people_below / leaderboard.total_participants) * 100, 2))
+                        str(
+                            round(
+                                (people_below / leaderboard.total_participants) * 100, 2
+                            )
+                        )
                     )
 
                 leaderboard_positions.append(

@@ -1,4 +1,6 @@
 # app/routers/projects.py
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session
@@ -9,26 +11,39 @@ from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.analytics import NotificationType
 from app.crud.project import (
-    project_crud, project_team_crud, milestone_crud, environmental_metric_crud
+    project_crud,
+    project_team_crud,
+    milestone_crud,
+    environmental_metric_crud,
 )
 from app.schemas.project import (
     # Project schemas
-    ProjectCreate, ProjectUpdate, Project, ProjectSummary, ProjectDetail,
-    ProjectDashboard, ProjectStats,
-
+    ProjectCreate,
+    ProjectUpdate,
+    Project,
+    ProjectSummary,
+    ProjectDetail,
+    ProjectDashboard,
+    ProjectStats,
     # Team schemas
-    ProjectTeamCreate, ProjectTeamUpdate, ProjectTeamMember,
-
+    ProjectTeamCreate,
+    ProjectTeamUpdate,
+    ProjectTeamMember,
     # Milestone schemas
-    MilestoneCreate, MilestoneUpdate, Milestone,
-
+    MilestoneCreate,
+    MilestoneUpdate,
+    Milestone,
     # Environmental metrics schemas
-    EnvironmentalMetricCreate, EnvironmentalMetricUpdate, EnvironmentalMetric
+    EnvironmentalMetricCreate,
+    EnvironmentalMetricUpdate,
+    EnvironmentalMetric,
 )
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
 from app.services.notification_service import NotificationService
 from app.services.analytics_service import track_project_progress
 from app.services.event_bus import EventType, get_event_bus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/projects",
@@ -52,11 +67,12 @@ def _can_manage_project(current_user: User, project) -> bool:
 # PROJECT ENDPOINTS
 # ========================================
 
+
 @router.post("/", response_model=Project)
 def create_project(
     project_data: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new project."""
     try:
@@ -64,37 +80,49 @@ def create_project(
         if current_user.user_type.name not in ["admin", "project_manager"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to create projects"
+                detail="Not authorized to create projects",
             )
-        
+
         project = project_crud.create_project(db, project_data, current_user.id)
         return Project(**project.model_dump())
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to create project: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create project: {str(e)}"
+            detail="Failed to create project.",
         )
+
 
 @router.get("/", response_model=List[ProjectSummary])
 def get_projects(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    status: Optional[str] = Query(None, regex="^(planning|in_progress|suspended|completed|cancelled)$"),
+    status: Optional[str] = Query(
+        None, regex="^(planning|in_progress|suspended|completed|cancelled)$"
+    ),
     category: Optional[str] = None,
     manager_id: Optional[int] = None,
     requires_volunteers: Optional[bool] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get list of projects with filtering options."""
     try:
         projects = project_crud.get_projects(
-            db, skip=skip, limit=limit, status=status, category=category,
-            manager_id=manager_id, requires_volunteers=requires_volunteers, search=search
+            db,
+            skip=skip,
+            limit=limit,
+            status=status,
+            category=category,
+            manager_id=manager_id,
+            requires_volunteers=requires_volunteers,
+            search=search,
         )
-        
+
         # Convert to summary format
         project_summaries = []
         for project in projects:
@@ -102,21 +130,24 @@ def get_projects(
             manager_name = None
             if project.project_manager_id:
                 from app.models.user import User
+
                 manager = db.get(User, project.project_manager_id)
                 if manager:
                     manager_name = manager.name
-            
+
             # Get team size and volunteers count
             team_data = project_team_crud.get_team_members(db, project.id)
             team_size = len(team_data)
-            volunteers_count = len([tm for tm in team_data if tm["team_member"].is_volunteer])
-            
+            volunteers_count = len(
+                [tm for tm in team_data if tm["team_member"].is_volunteer]
+            )
+
             # Calculate progress if has tasks
             progress = 0.0
             details = project_crud.get_project_with_details(db, project.id)
             if details and details["total_tasks"] > 0:
                 progress = (details["completed_tasks"] / details["total_tasks"]) * 100
-            
+
             summary = ProjectSummary(
                 id=project.id,
                 name=project.name,
@@ -132,90 +163,100 @@ def get_projects(
                 project_manager_name=manager_name,
                 team_size=team_size,
                 volunteers_count=volunteers_count,
-                progress_percentage=progress
+                progress_percentage=progress,
             )
             project_summaries.append(summary)
-        
+
         return project_summaries
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to retrieve projects: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve projects: {str(e)}"
+            detail="Failed to retrieve projects.",
         )
+
 
 @router.get("/dashboard", response_model=List[ProjectDashboard])
 def get_projects_dashboard(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get project dashboard data."""
     try:
-        dashboard_data = project_crud.get_project_dashboard_data(db, skip=skip, limit=limit)
-        
+        dashboard_data = project_crud.get_project_dashboard_data(
+            db, skip=skip, limit=limit
+        )
+
         dashboards = []
         for data in dashboard_data:
             # Calculate additional metrics
             progress = 0.0
             if data["total_tasks"] > 0:
                 progress = (data["completed_tasks"] / data["total_tasks"]) * 100
-            
+
             days_remaining = None
             if data["end_date"]:
                 from datetime import date
+
                 today = date.today()
                 if data["end_date"] > today:
                     days_remaining = (data["end_date"] - today).days
-            
+
             budget_utilization = None
             if data["budget"] and data["budget"] > 0:
                 budget_utilization = (data["actual_cost"] / data["budget"]) * 100
-            
+
             dashboard = ProjectDashboard(
                 **data,
                 progress_percentage=progress,
                 days_remaining=days_remaining,
-                budget_utilization=budget_utilization
+                budget_utilization=budget_utilization,
             )
             dashboards.append(dashboard)
-        
+
         return dashboards
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to retrieve dashboard data: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve dashboard data: {str(e)}"
+            detail="Failed to retrieve dashboard data.",
         )
 
+
 @router.get("/stats", response_model=ProjectStats)
-def get_project_stats(
-    db: Session = Depends(get_db)
-):
+def get_project_stats(db: Session = Depends(get_db)):
     """Get project statistics (public endpoint)."""
     try:
         stats = project_crud.get_project_stats(db)
         return ProjectStats(**stats)
     except Exception as e:
+        logger.error("Failed to retrieve project stats: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project stats: {str(e)}"
+            detail="Failed to retrieve project stats.",
         )
+
 
 @router.get("/{project_id}", response_model=ProjectDetail)
 def get_project(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get detailed project information."""
     try:
         project_data = project_crud.get_project_with_details(db, project_id)
         if not project_data:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         project = project_data["project"]
@@ -223,49 +264,64 @@ def get_project(
         # Build detailed response
         detail = ProjectDetail(
             **project.model_dump(),
-            project_manager_name=project_data["manager"].name if project_data["manager"] else None,
-            created_by_name=project_data["creator"].name if project_data["creator"] else None,
+            project_manager_name=project_data["manager"].name
+            if project_data["manager"]
+            else None,
+            created_by_name=project_data["creator"].name
+            if project_data["creator"]
+            else None,
             team_members=[],  # Will be populated from team data
-            milestones=[Milestone(**m.model_dump()) for m in project_data["milestones"]],
+            milestones=[
+                Milestone(**m.model_dump()) for m in project_data["milestones"]
+            ],
             environmental_metrics=[],  # Will be populated from metrics data
             total_tasks=project_data["total_tasks"],
             completed_tasks=project_data["completed_tasks"],
-            progress_percentage=(project_data["completed_tasks"] / max(project_data["total_tasks"], 1)) * 100,
-            volunteer_hours=project_data["volunteer_hours"]
+            progress_percentage=(
+                project_data["completed_tasks"] / max(project_data["total_tasks"], 1)
+            )
+            * 100,
+            volunteer_hours=project_data["volunteer_hours"],
         )
 
         # Add team members
         for team_member, user, user_type in project_data["team_members"]:
-            detail.team_members.append(ProjectTeamMember(
-                **team_member.model_dump(),
-                name=user.name,
-                email=user.email,
-                user_type=user_type.name if user_type else None
-            ))
+            detail.team_members.append(
+                ProjectTeamMember(
+                    **team_member.model_dump(),
+                    name=user.name,
+                    email=user.email,
+                    user_type=user_type.name if user_type else None,
+                )
+            )
 
         # Add environmental metrics
         for metric, recorder in project_data["environmental_metrics"]:
-            detail.environmental_metrics.append(EnvironmentalMetric(
-                **metric.model_dump(),
-                recorded_by_name=recorder.name if recorder else None
-            ))
+            detail.environmental_metrics.append(
+                EnvironmentalMetric(
+                    **metric.model_dump(),
+                    recorded_by_name=recorder.name if recorder else None,
+                )
+            )
 
         return detail
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project: {str(e)}"
+            detail="Failed to retrieve project.",
         )
+
 
 @router.put("/{project_id}", response_model=Project)
 async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update project."""
     try:
@@ -273,17 +329,18 @@ async def update_project(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Check permissions
-        if (current_user.user_type.name not in ["admin"] and
-            project.project_manager_id != current_user.id and
-            project.created_by_id != current_user.id):
+        if (
+            current_user.user_type.name not in ["admin"]
+            and project.project_manager_id != current_user.id
+            and project.created_by_id != current_user.id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this project"
+                detail="Not authorized to update this project",
             )
 
         # Track old status
@@ -311,7 +368,7 @@ async def update_project(
                     title="Project Status Updated",
                     message=f'Project "{updated_project.name}" status changed from {old_status} to {updated_project.status}',
                     notification_type=NotificationType.info,
-                    related_project_id=project_id
+                    related_project_id=project_id,
                 )
 
             # Publish event
@@ -324,8 +381,8 @@ async def update_project(
                         "project_name": updated_project.name,
                         "old_status": old_status,
                         "new_status": updated_project.status,
-                        "changed_by": current_user.id
-                    }
+                        "changed_by": current_user.id,
+                    },
                 )
             except Exception as e:
                 pass
@@ -344,16 +401,18 @@ async def update_project(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update project: {str(e)}"
+            detail="Failed to update project.",
         )
+
 
 @router.delete("/{project_id}", response_model=dict)
 def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete project (mark as cancelled)."""
     try:
@@ -361,67 +420,77 @@ def delete_project(
         if current_user.user_type.name not in ["admin"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete projects"
+                detail="Not authorized to delete projects",
             )
-        
+
         success = project_crud.delete_project(db, project_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        
+
         return {"message": "Project deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to delete project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete project: {str(e)}"
+            detail="Failed to delete project.",
         )
+
 
 # ========================================
 # PROJECT TEAM ENDPOINTS
 # ========================================
 
+
 @router.get("/{project_id}/team", response_model=List[ProjectTeamMember])
 def get_project_team(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get project team members."""
     try:
         team_data = project_team_crud.get_team_members(db, project_id)
-        
+
         team_members = []
         for data in team_data:
             team_member = data["team_member"]
             user = data["user"]
             user_type = data["user_type"]
 
-            team_members.append(ProjectTeamMember(
-                **team_member.model_dump(),
-                name=user.name,
-                email=user.email,
-                user_type=user_type if user_type else None
-            ))
-        
+            team_members.append(
+                ProjectTeamMember(
+                    **team_member.model_dump(),
+                    name=user.name,
+                    email=user.email,
+                    user_type=user_type if user_type else None,
+                )
+            )
+
         return team_members
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(
+            "Failed to retrieve team members for project %s: %s", project_id, e
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve team members: {str(e)}"
+            detail="Failed to retrieve team members.",
         )
+
 
 @router.post("/{project_id}/team", response_model=ProjectTeamMember)
 async def add_team_member(
     project_id: int,
     team_data: ProjectTeamCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Add team member to project."""
     try:
@@ -429,26 +498,26 @@ async def add_team_member(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Check permissions
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to manage project team"
+                detail="Not authorized to manage project team",
             )
 
         team_member = project_team_crud.add_team_member(db, project_id, team_data)
         if not team_member:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User is already a team member"
+                detail="User is already a team member",
             )
 
         # Get user info for response
         from app.models.user import User, UserType
+
         user = db.get(User, team_member.user_id)
         user_type = db.get(UserType, user.user_type_id)
 
@@ -459,7 +528,7 @@ async def add_team_member(
             title="Added to Project Team",
             message=f'You have been added to project: "{project.name}"',
             notification_type=NotificationType.info,
-            related_project_id=project_id
+            related_project_id=project_id,
         )
 
         # Publish event
@@ -472,9 +541,9 @@ async def add_team_member(
                     "project_name": project.name,
                     "user_id": team_member.user_id,
                     "role": team_data.role,
-                    "added_by": current_user.id
+                    "added_by": current_user.id,
                 },
-                user_id=team_member.user_id
+                user_id=team_member.user_id,
             )
         except Exception as e:
             pass
@@ -483,16 +552,18 @@ async def add_team_member(
             **team_member.model_dump(),
             name=user.name,
             email=user.email,
-            user_type=user_type.name if user_type else None
+            user_type=user_type.name if user_type else None,
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to add team member to project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add team member: {str(e)}"
+            detail="Failed to add team member.",
         )
+
 
 @router.put("/{project_id}/team/{user_id}", response_model=ProjectTeamMember)
 def update_team_member(
@@ -500,7 +571,7 @@ def update_team_member(
     user_id: int,
     update_data: ProjectTeamUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update team member."""
     try:
@@ -508,49 +579,57 @@ def update_team_member(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        
+
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to manage project team"
+                detail="Not authorized to manage project team",
             )
-        
-        team_member = project_team_crud.update_team_member(db, project_id, user_id, update_data)
+
+        team_member = project_team_crud.update_team_member(
+            db, project_id, user_id, update_data
+        )
         if not team_member:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Team member not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Team member not found"
             )
-        
+
         # Get user info for response
         from app.models.user import User, UserType
+
         user = db.get(User, team_member.user_id)
         user_type = db.get(UserType, user.user_type_id)
-        
+
         return ProjectTeamMember(
             **team_member.model_dump(),
             name=user.name,
             email=user.email,
-            user_type=user_type.name if user_type else None
+            user_type=user_type.name if user_type else None,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to update team member (project=%s, user=%s): %s",
+            project_id,
+            user_id,
+            e,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update team member: {str(e)}"
+            detail="Failed to update team member.",
         )
+
 
 @router.delete("/{project_id}/team/{user_id}", response_model=dict)
 def remove_team_member(
     project_id: int,
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Remove team member from project."""
     try:
@@ -558,59 +637,69 @@ def remove_team_member(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        
+
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to manage project team"
+                detail="Not authorized to manage project team",
             )
-        
+
         success = project_team_crud.remove_team_member(db, project_id, user_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Team member not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Team member not found"
             )
-        
+
         return {"message": "Team member removed successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            "Failed to remove team member (project=%s, user=%s): %s",
+            project_id,
+            user_id,
+            e,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to remove team member: {str(e)}"
+            detail="Failed to remove team member.",
         )
+
 
 # ========================================
 # MILESTONE ENDPOINTS
 # ========================================
 
+
 @router.get("/{project_id}/milestones", response_model=List[Milestone])
 def get_project_milestones(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get project milestones."""
     try:
         milestones = milestone_crud.get_project_milestones(db, project_id)
         return [Milestone(**m.model_dump()) for m in milestones]
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to retrieve milestones for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve milestones: {str(e)}"
+            detail="Failed to retrieve milestones.",
         )
+
 
 @router.post("/{project_id}/milestones", response_model=Milestone)
 def create_milestone(
     project_id: int,
     milestone_data: MilestoneCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create project milestone."""
     try:
@@ -618,42 +707,42 @@ def create_milestone(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        
+
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to create milestones"
+                detail="Not authorized to create milestones",
             )
-        
+
         milestone_data.project_id = project_id
         milestone = milestone_crud.create_milestone(db, milestone_data)
         return Milestone(**milestone.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to create milestone for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create milestone: {str(e)}"
+            detail="Failed to create milestone.",
         )
+
 
 @router.put("/milestones/{milestone_id}", response_model=Milestone)
 async def update_milestone(
     milestone_id: int,
     milestone_data: MilestoneUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update milestone."""
     try:
         milestone = milestone_crud.get_milestone(db, milestone_id)
         if not milestone:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Milestone not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found"
             )
 
         # Check permissions
@@ -661,13 +750,15 @@ async def update_milestone(
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update milestones"
+                detail="Not authorized to update milestones",
             )
 
         # Track old completion status
         was_completed = milestone.is_completed
 
-        updated_milestone = milestone_crud.update_milestone(db, milestone_id, milestone_data)
+        updated_milestone = milestone_crud.update_milestone(
+            db, milestone_id, milestone_data
+        )
 
         # Notify team if milestone was just completed
         if milestone_data.is_completed and not was_completed:
@@ -689,7 +780,7 @@ async def update_milestone(
                     title="Milestone Completed",
                     message=f'Milestone "{updated_milestone.name}" in project "{project.name}" has been completed!',
                     notification_type=NotificationType.success,
-                    related_project_id=milestone.project_id
+                    related_project_id=milestone.project_id,
                 )
 
             # Publish event
@@ -702,8 +793,8 @@ async def update_milestone(
                         "milestone_name": updated_milestone.name,
                         "project_id": milestone.project_id,
                         "project_name": project.name,
-                        "completed_by": current_user.id
-                    }
+                        "completed_by": current_user.id,
+                    },
                 )
             except Exception as e:
                 pass
@@ -713,77 +804,84 @@ async def update_milestone(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update milestone %s: %s", milestone_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update milestone: {str(e)}"
+            detail="Failed to update milestone.",
         )
+
 
 @router.delete("/milestones/{milestone_id}", response_model=dict)
 def delete_milestone(
     milestone_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete milestone."""
     try:
         milestone = milestone_crud.get_milestone(db, milestone_id)
         if not milestone:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Milestone not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, milestone.project_id)
         if not _can_manage_project(current_user, project):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete milestones"
+                detail="Not authorized to delete milestones",
             )
-        
+
         success = milestone_crud.delete_milestone(db, milestone_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Milestone not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found"
             )
-        
+
         return {"message": "Milestone deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to delete milestone %s: %s", milestone_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete milestone: {str(e)}"
+            detail="Failed to delete milestone.",
         )
+
 
 # ========================================
 # ENVIRONMENTAL METRICS ENDPOINTS
 # ========================================
 
+
 @router.get("/{project_id}/metrics", response_model=List[EnvironmentalMetric])
 def get_project_metrics(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get project environmental metrics."""
     try:
         metrics = environmental_metric_crud.get_project_metrics(db, project_id)
         return [EnvironmentalMetric(**m.model_dump()) for m in metrics]
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to retrieve metrics for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve metrics: {str(e)}"
+            detail="Failed to retrieve metrics.",
         )
+
 
 @router.post("/{project_id}/metrics", response_model=EnvironmentalMetric)
 def create_environmental_metric(
     project_id: int,
     metric_data: EnvironmentalMetricCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create environmental metric."""
     try:
@@ -791,123 +889,135 @@ def create_environmental_metric(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        
-        if (current_user.user_type.name != "staff_member" and
-            not _can_manage_project(current_user, project)):
+
+        if current_user.user_type.name != "staff_member" and not _can_manage_project(
+            current_user, project
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to create metrics"
+                detail="Not authorized to create metrics",
             )
-        
+
         metric_data.project_id = project_id
         metric_data.recorded_by_id = current_user.id
-        
+
         metric = environmental_metric_crud.create_metric(db, metric_data)
         return EnvironmentalMetric(**metric.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to create metric for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create metric: {str(e)}"
+            detail="Failed to create metric.",
         )
+
 
 @router.put("/metrics/{metric_id}", response_model=EnvironmentalMetric)
 def update_environmental_metric(
     metric_id: int,
     metric_data: EnvironmentalMetricUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update environmental metric."""
     try:
         metric = environmental_metric_crud.get_metric(db, metric_id)
         if not metric:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Metric not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Metric not found"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, metric.project_id)
-        if (current_user.user_type.name != "staff_member" and
-            not _can_manage_project(current_user, project) and
-            metric.recorded_by_id != current_user.id):
+        if (
+            current_user.user_type.name != "staff_member"
+            and not _can_manage_project(current_user, project)
+            and metric.recorded_by_id != current_user.id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this metric"
+                detail="Not authorized to update this metric",
             )
-        
-        updated_metric = environmental_metric_crud.update_metric(db, metric_id, metric_data)
+
+        updated_metric = environmental_metric_crud.update_metric(
+            db, metric_id, metric_data
+        )
         return EnvironmentalMetric(**updated_metric.model_dump())
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update metric %s: %s", metric_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update metric: {str(e)}"
+            detail="Failed to update metric.",
         )
+
 
 @router.delete("/metrics/{metric_id}", response_model=dict)
 def delete_environmental_metric(
     metric_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete environmental metric."""
     try:
         metric = environmental_metric_crud.get_metric(db, metric_id)
         if not metric:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Metric not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Metric not found"
             )
-        
+
         # Check permissions
         project = project_crud.get_project(db, metric.project_id)
-        if (not _can_manage_project(current_user, project) and
-            metric.recorded_by_id != current_user.id):
+        if (
+            not _can_manage_project(current_user, project)
+            and metric.recorded_by_id != current_user.id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this metric"
+                detail="Not authorized to delete this metric",
             )
-        
+
         success = environmental_metric_crud.delete_metric(db, metric_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Metric not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Metric not found"
             )
-        
+
         return {"message": "Environmental metric deleted successfully"}
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to delete metric %s: %s", metric_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete metric: {str(e)}"
+            detail="Failed to delete metric.",
         )
+
 
 # ========================================
 # PROJECT RELATION ENDPOINTS
 # ========================================
+
 
 @router.get("/{project_id}/tasks")
 def get_project_tasks(
     project_id: int,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    status: Optional[str] = Query(None, regex="^(not_started|in_progress|completed|cancelled)$"),
+    status: Optional[str] = Query(
+        None, regex="^(not_started|in_progress|completed|cancelled)$"
+    ),
     priority: Optional[str] = Query(None, regex="^(low|medium|high|critical)$"),
     suitable_for_volunteers: Optional[bool] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get all tasks for a specific project with pagination."""
     from app.schemas.task import TaskSummary
@@ -919,8 +1029,7 @@ def get_project_tasks(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Calculate skip offset
@@ -928,15 +1037,23 @@ def get_project_tasks(
 
         # Get tasks for this project
         tasks = task_crud.get_tasks(
-            db, skip=skip, limit=page_size, project_id=project_id,
-            status=status, priority=priority,
-            suitable_for_volunteers=suitable_for_volunteers
+            db,
+            skip=skip,
+            limit=page_size,
+            project_id=project_id,
+            status=status,
+            priority=priority,
+            suitable_for_volunteers=suitable_for_volunteers,
         )
 
         # Get total count for pagination
-        total = task_crud.count_tasks(db, project_id=project_id, status=status,
-                                     priority=priority,
-                                     suitable_for_volunteers=suitable_for_volunteers)
+        total = task_crud.count_tasks(
+            db,
+            project_id=project_id,
+            status=status,
+            priority=priority,
+            suitable_for_volunteers=suitable_for_volunteers,
+        )
 
         # Convert to summary format
         task_summaries = []
@@ -947,30 +1064,33 @@ def get_project_tasks(
                 if assigned_user:
                     assigned_to_name = assigned_user.name
 
-            volunteers_count = len(task.task_volunteers) if hasattr(task, 'task_volunteers') else 0
+            volunteers_assigned = (
+                len(task.task_volunteers) if hasattr(task, "task_volunteers") else 0
+            )
 
-            task_summaries.append(TaskSummary(
-                **task.model_dump(),
-                project_name=project.name,
-                assigned_to_name=assigned_to_name,
-                volunteers_count=volunteers_count
-            ))
+            task_summaries.append(
+                TaskSummary(
+                    **task.model_dump(),
+                    project_name=project.name,
+                    assigned_to_name=assigned_to_name,
+                    volunteers_assigned=volunteers_assigned,
+                )
+            )
 
         # Create pagination metadata
         metadata = create_pagination_metadata(total, page, page_size)
 
-        return PaginatedResponse[TaskSummary](
-            data=task_summaries,
-            metadata=metadata
-        )
+        return PaginatedResponse[TaskSummary](data=task_summaries, metadata=metadata)
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve tasks for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project tasks: {str(e)}"
+            detail="Failed to retrieve project tasks.",
         )
+
 
 @router.get("/{project_id}/volunteers")
 def get_project_volunteers(
@@ -978,7 +1098,7 @@ def get_project_volunteers(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get all volunteers assigned to a specific project."""
     from app.schemas.volunteer import VolunteerSummary
@@ -991,8 +1111,7 @@ def get_project_volunteers(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Calculate skip offset
@@ -1001,6 +1120,7 @@ def get_project_volunteers(
         # Get unique volunteers assigned to tasks in this project
         # First get volunteer IDs from task assignments
         from app.models.task import Task
+
         volunteer_query = (
             select(VolunteerModel)
             .join(TaskVolunteer, TaskVolunteer.volunteer_id == VolunteerModel.id)
@@ -1036,29 +1156,32 @@ def get_project_volunteers(
             )
             tasks_count = db.exec(tasks_count_query).one() or 0
 
-            volunteer_summaries.append(VolunteerSummary(
-                **volunteer.model_dump(),
-                name=user.name if user else "Unknown",
-                email=user.email if user else "unknown@example.com",
-                active_projects_count=tasks_count,
-                total_hours_contributed=volunteer.total_hours_contributed or 0.0
-            ))
+            volunteer_summaries.append(
+                VolunteerSummary(
+                    **volunteer.model_dump(),
+                    name=user.name if user else "Unknown",
+                    email=user.email if user else "unknown@example.com",
+                    active_projects_count=tasks_count,
+                    total_hours_contributed=volunteer.total_hours_contributed or 0.0,
+                )
+            )
 
         # Create pagination metadata
         metadata = create_pagination_metadata(total, page, page_size)
 
         return PaginatedResponse[VolunteerSummary](
-            data=volunteer_summaries,
-            metadata=metadata
+            data=volunteer_summaries, metadata=metadata
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve volunteers for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project volunteers: {str(e)}"
+            detail="Failed to retrieve project volunteers.",
         )
+
 
 @router.get("/{project_id}/resources")
 def get_project_resources(
@@ -1066,7 +1189,7 @@ def get_project_resources(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get all resources allocated to a specific project."""
     from app.schemas.resource import ResourceAllocation
@@ -1077,8 +1200,7 @@ def get_project_resources(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Calculate skip offset
@@ -1096,17 +1218,18 @@ def get_project_resources(
         metadata = create_pagination_metadata(total, page, page_size)
 
         return PaginatedResponse[ResourceAllocation](
-            data=allocations,
-            metadata=metadata
+            data=allocations, metadata=metadata
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve resources for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project resources: {str(e)}"
+            detail="Failed to retrieve project resources.",
         )
+
 
 @router.get("/{project_id}/activity")
 def get_project_activity(
@@ -1115,7 +1238,7 @@ def get_project_activity(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     action_filter: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get activity log for a specific project."""
     from app.models.analytics import ActivityLog
@@ -1126,8 +1249,7 @@ def get_project_activity(
         project = project_crud.get_project(db, project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
 
         # Calculate skip offset
@@ -1139,12 +1261,16 @@ def get_project_activity(
         if action_filter:
             query = query.where(ActivityLog.action.contains(action_filter))
 
-        query = query.order_by(desc(ActivityLog.created_at)).offset(skip).limit(page_size)
+        query = (
+            query.order_by(desc(ActivityLog.created_at)).offset(skip).limit(page_size)
+        )
 
         activities = db.exec(query).all()
 
         # Get total count
-        count_query = select(func.count(ActivityLog.id)).where(ActivityLog.project_id == project_id)
+        count_query = select(func.count(ActivityLog.id)).where(
+            ActivityLog.project_id == project_id
+        )
         if action_filter:
             count_query = count_query.where(ActivityLog.action.contains(action_filter))
 
@@ -1154,28 +1280,28 @@ def get_project_activity(
         activity_data = []
         for activity in activities:
             user = db.get(User, activity.user_id) if activity.user_id else None
-            activity_data.append({
-                "id": activity.id,
-                "user_name": user.name if user else "System",
-                "action": activity.action,
-                "description": activity.description,
-                "created_at": activity.created_at.isoformat(),
-                "old_values": activity.old_values,
-                "new_values": activity.new_values
-            })
+            activity_data.append(
+                {
+                    "id": activity.id,
+                    "user_name": user.name if user else "System",
+                    "action": activity.action,
+                    "description": activity.description,
+                    "created_at": activity.created_at.isoformat(),
+                    "old_values": activity.old_values,
+                    "new_values": activity.new_values,
+                }
+            )
 
         # Create pagination metadata
         metadata = create_pagination_metadata(total, page, page_size)
 
-        return {
-            "data": activity_data,
-            "metadata": metadata.model_dump()
-        }
+        return {"data": activity_data, "metadata": metadata.model_dump()}
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve activity for project %s: %s", project_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve project activity: {str(e)}"
+            detail="Failed to retrieve project activity.",
         )

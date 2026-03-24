@@ -198,20 +198,19 @@ class GamificationService:
         except Exception as e:
             logger.error(f"Failed to publish badge earned event: {e}")
 
-        # TODO: Re-enable notifications after verification
         # Send notification
-        # try:
-        #     volunteer = db.get(Volunteer, volunteer_id)
-        #     if volunteer:
-        #         await NotificationService.create_notification(
-        #             db=db,
-        #             user_id=volunteer.user_id,
-        #             title=f"Badge Earned: {badge.name}",
-        #             message=f"Congratulations! You've earned the '{badge.name}' badge and {badge.points_value} points!",
-        #             notification_type=NotificationType.achievement,
-        #         )
-        # except Exception as e:
-        #     logger.error(f"Failed to send badge notification: {e}")
+        try:
+            volunteer = db.get(Volunteer, volunteer_id)
+            if volunteer:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=volunteer.user_id,
+                    title=f"Badge Earned: {badge.name}",
+                    message=f"Congratulations! You've earned the '{badge.name}' badge and {badge.points_value} points!",
+                    notification_type=NotificationType.success,
+                )
+        except Exception as e:
+            logger.error(f"Failed to send badge notification: {e}")
 
         return {
             "status": "awarded",
@@ -229,7 +228,9 @@ class GamificationService:
         """Check and update all achievements for a volunteer."""
         try:
             # Get all active achievements
-            achievements = achievement_crud.get_achievements(db, is_active=True, limit=1000)
+            achievements = achievement_crud.get_achievements(
+                db, is_active=True, limit=1000
+            )
 
             for achievement in achievements:
                 await GamificationService._check_single_achievement(
@@ -237,7 +238,9 @@ class GamificationService:
                 )
 
         except Exception as e:
-            logger.error(f"Error checking achievements for volunteer {volunteer_id}: {e}")
+            logger.error(
+                f"Error checking achievements for volunteer {volunteer_id}: {e}"
+            )
 
     @staticmethod
     async def _check_single_achievement(
@@ -267,7 +270,9 @@ class GamificationService:
 
             # Check if newly completed
             if progress.is_completed and not was_completed:
-                await GamificationService._complete_achievement(db, volunteer_id, achievement)
+                await GamificationService._complete_achievement(
+                    db, volunteer_id, achievement
+                )
 
         except Exception as e:
             logger.error(
@@ -298,13 +303,17 @@ class GamificationService:
                 return Decimal(str(result or 0))
 
             elif achievement_type == "projects_completed":
-                # Get completed projects count
-                # This would need integration with project module
+                # Get completed projects count via the volunteer's user_id.
+                # ProjectTeam.user_id is a FK to users.id, NOT volunteers.id,
+                # so we must look up the volunteer first to get the correct user_id.
                 from app.models.project import ProjectTeam
 
+                volunteer = db.get(Volunteer, volunteer_id)
+                if not volunteer:
+                    return Decimal("0")
                 statement = (
                     select(func.count(ProjectTeam.id))
-                    .where(ProjectTeam.user_id == volunteer_id)
+                    .where(ProjectTeam.user_id == volunteer.user_id)
                     .where(ProjectTeam.is_active == True)
                 )
                 result = db.exec(statement).first()
@@ -363,7 +372,9 @@ class GamificationService:
             return Decimal("0")
 
     @staticmethod
-    async def _complete_achievement(db: Session, volunteer_id: int, achievement: Achievement):
+    async def _complete_achievement(
+        db: Session, volunteer_id: int, achievement: Achievement
+    ):
         """Handle achievement completion - award points and badge."""
         logger.info(
             f"Volunteer {volunteer_id} completed achievement '{achievement.name}'"
@@ -407,20 +418,19 @@ class GamificationService:
         except Exception as e:
             logger.error(f"Failed to publish achievement completed event: {e}")
 
-        # TODO: Re-enable notifications after verification
         # Send notification
-        # try:
-        #     volunteer = db.get(Volunteer, volunteer_id)
-        #     if volunteer:
-        #         await NotificationService.create_notification(
-        #             db=db,
-        #             user_id=volunteer.user_id,
-        #             title=f"Achievement Unlocked: {achievement.name}",
-        #             message=f"Congratulations! You've completed '{achievement.name}' and earned {achievement.points_reward} points!",
-        #             notification_type=NotificationType.achievement,
-        #         )
-        # except Exception as e:
-        #     logger.error(f"Failed to send achievement notification: {e}")
+        try:
+            volunteer = db.get(Volunteer, volunteer_id)
+            if volunteer:
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=volunteer.user_id,
+                    title=f"Achievement Unlocked: {achievement.name}",
+                    message=f"Congratulations! You've completed '{achievement.name}' and earned {achievement.points_reward} points!",
+                    notification_type=NotificationType.success,
+                )
+        except Exception as e:
+            logger.error(f"Failed to send achievement notification: {e}")
 
     # ========================================
     # LEADERBOARD MANAGEMENT
@@ -497,7 +507,9 @@ class GamificationService:
         # Calculate statistics
         total_participants = len(rankings)
         values = [r["value"] for r in rankings]
-        average_value = Decimal(str(sum(values) / total_participants)) if values else None
+        average_value = (
+            Decimal(str(sum(values) / total_participants)) if values else None
+        )
         median_value = Decimal(str(median(values))) if values else None
 
         # Create leaderboard
@@ -534,18 +546,15 @@ class GamificationService:
         try:
             from app.models.volunteer import VolunteerTimeLog
 
-            statement = (
-                select(
-                    VolunteerTimeLog.volunteer_id,
-                    func.sum(VolunteerTimeLog.hours).label("total_hours"),
-                )
-                .where(VolunteerTimeLog.approved == True)
-            )
+            statement = select(
+                VolunteerTimeLog.volunteer_id,
+                func.sum(VolunteerTimeLog.hours).label("total_hours"),
+            ).where(VolunteerTimeLog.approved == True)
 
             if period_start and period_end:
-                statement = statement.where(VolunteerTimeLog.date >= period_start.date()).where(
-                    VolunteerTimeLog.date <= period_end.date()
-                )
+                statement = statement.where(
+                    VolunteerTimeLog.date >= period_start.date()
+                ).where(VolunteerTimeLog.date <= period_end.date())
 
             statement = (
                 statement.group_by(VolunteerTimeLog.volunteer_id)
@@ -573,7 +582,9 @@ class GamificationService:
 
             total_participants = len(rankings)
             values = [r["value"] for r in rankings]
-            average_value = Decimal(str(sum(values) / total_participants)) if values else None
+            average_value = (
+                Decimal(str(sum(values) / total_participants)) if values else None
+            )
             median_value = Decimal(str(median(values))) if values else None
 
             leaderboard = leaderboard_crud.create_leaderboard(
@@ -624,13 +635,10 @@ class GamificationService:
         try:
             from app.models.project import ProjectTeam
 
-            statement = (
-                select(
-                    ProjectTeam.user_id,
-                    func.count(ProjectTeam.project_id).label("total_projects"),
-                )
-                .where(ProjectTeam.is_active == True)
-            )
+            statement = select(
+                ProjectTeam.user_id,
+                func.count(ProjectTeam.project_id).label("total_projects"),
+            ).where(ProjectTeam.is_active == True)
 
             if period_start and period_end:
                 statement = statement.where(
@@ -663,7 +671,9 @@ class GamificationService:
 
             total_participants = len(rankings)
             values = [r["value"] for r in rankings]
-            average_value = Decimal(str(sum(values) / total_participants)) if values else None
+            average_value = (
+                Decimal(str(sum(values) / total_participants)) if values else None
+            )
             median_value = Decimal(str(median(values))) if values else None
 
             leaderboard = leaderboard_crud.create_leaderboard(
@@ -721,7 +731,9 @@ class GamificationService:
                         GamificationService.generate_projects_leaderboard(db, timeframe)
                     count += 1
                 except Exception as e:
-                    logger.error(f"Error generating {lb_type}/{timeframe} leaderboard: {e}")
+                    logger.error(
+                        f"Error generating {lb_type}/{timeframe} leaderboard: {e}"
+                    )
 
         # Update volunteer rankings
         points_crud.update_rankings(db)
@@ -730,7 +742,9 @@ class GamificationService:
         return count
 
     @staticmethod
-    def _get_timeframe_dates(timeframe: str) -> tuple[Optional[datetime], Optional[datetime]]:
+    def _get_timeframe_dates(
+        timeframe: str,
+    ) -> tuple[Optional[datetime], Optional[datetime]]:
         """Get start and end dates for a timeframe."""
         now = datetime.utcnow()
 
@@ -746,7 +760,9 @@ class GamificationService:
             start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             # Last day of month
             if start.month == 12:
-                end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(seconds=1)
+                end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(
+                    seconds=1
+                )
             else:
                 end = start.replace(month=start.month + 1, day=1) - timedelta(seconds=1)
             return start, end

@@ -1,4 +1,6 @@
 # app/routers/blog.py
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session
@@ -11,14 +13,26 @@ from app.models.blog import BlogPostStatus
 from app.crud.blog import blog_crud
 from app.schemas.blog import (
     # Blog Post schemas
-    BlogPostCreate, BlogPostUpdate, BlogPost, BlogPostSummary, BlogPostListResponse,
+    BlogPostCreate,
+    BlogPostUpdate,
+    BlogPost,
+    BlogPostSummary,
+    BlogPostListResponse,
     # Category schemas
-    CategoryCreate, CategoryUpdate, Category, CategoryListResponse,
+    CategoryCreate,
+    CategoryUpdate,
+    Category,
+    CategoryListResponse,
     # Tag schemas
-    TagCreate, TagUpdate, Tag, TagListResponse,
+    TagCreate,
+    TagUpdate,
+    Tag,
+    TagListResponse,
     # Author schema
-    Author
+    Author,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/blog",
@@ -34,7 +48,7 @@ def require_admin(current_user: User) -> User:
     if current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can perform this action"
+            detail="Only administrators can perform this action",
         )
     return current_user
 
@@ -43,11 +57,12 @@ def require_admin(current_user: User) -> User:
 # BLOG POST ENDPOINTS
 # ========================================
 
+
 @router.post("/posts", response_model=BlogPost, status_code=status.HTTP_201_CREATED)
 def create_blog_post(
     post_data: BlogPostCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new blog post.
@@ -63,16 +78,23 @@ def create_blog_post(
         # Build response with details
         response_data = {
             **post.model_dump(),
-            "author": Author(**details["author"].model_dump()) if details["author"] else None,
-            "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-            "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+            "author": Author(**details["author"].model_dump())
+            if details["author"]
+            else None,
+            "categories": [
+                Category(**c.model_dump(), post_count=0) for c in details["categories"]
+            ],
+            "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
         }
         return BlogPost(**response_data)
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to create blog post: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create blog post: {str(e)}"
+            detail="Failed to create blog post.",
         )
 
 
@@ -86,7 +108,7 @@ def get_blog_posts(
     author_id: Optional[int] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    current_user: Optional[User] = None,
 ):
     """
     Get list of blog posts with filtering options.
@@ -119,7 +141,7 @@ def get_blog_posts(
             tag=tag,
             author_id=author_id,
             search=search,
-            include_drafts=include_drafts
+            include_drafts=include_drafts,
         )
 
         # Build response with details
@@ -132,30 +154,31 @@ def get_blog_posts(
             summary = BlogPostSummary(
                 **post.model_dump(),
                 author_name=author_name,
-                categories=[Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-                tags=[Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+                categories=[
+                    Category(**c.model_dump(), post_count=0)
+                    for c in details["categories"]
+                ],
+                tags=[Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
             )
             post_summaries.append(summary)
 
         return BlogPostListResponse(
-            items=post_summaries,
-            total=total,
-            skip=skip,
-            limit=limit
+            items=post_summaries, total=total, skip=skip, limit=limit
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to get blog posts: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get blog posts: {str(e)}"
+            detail="Failed to get blog posts.",
         )
 
 
 @router.get("/posts/{post_id}", response_model=BlogPost)
 def get_blog_post(
-    post_id: int,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    post_id: int, db: Session = Depends(get_db), current_user: Optional[User] = None
 ):
     """
     Get a single blog post by ID.
@@ -167,34 +190,34 @@ def get_blog_post(
     post = blog_crud.get_blog_post(db, post_id)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check permissions for draft posts
     if post.status == BlogPostStatus.draft:
         if not current_user or current_user.user_type.name != "admin":
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Blog post not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
             )
 
     details = blog_crud.get_blog_post_with_details(db, post_id)
 
     response_data = {
         **post.model_dump(),
-        "author": Author(**details["author"].model_dump()) if details["author"] else None,
-        "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+        "author": Author(**details["author"].model_dump())
+        if details["author"]
+        else None,
+        "categories": [
+            Category(**c.model_dump(), post_count=0) for c in details["categories"]
+        ],
+        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
     }
     return BlogPost(**response_data)
 
 
 @router.get("/posts/by-slug/{slug}", response_model=BlogPost)
 def get_blog_post_by_slug(
-    slug: str,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    slug: str, db: Session = Depends(get_db), current_user: Optional[User] = None
 ):
     """
     Get a single blog post by slug.
@@ -206,25 +229,27 @@ def get_blog_post_by_slug(
     post = blog_crud.get_blog_post_by_slug(db, slug)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check permissions for draft posts
     if post.status == BlogPostStatus.draft:
         if not current_user or current_user.user_type.name != "admin":
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Blog post not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
             )
 
     details = blog_crud.get_blog_post_with_details(db, post.id)
 
     response_data = {
         **post.model_dump(),
-        "author": Author(**details["author"].model_dump()) if details["author"] else None,
-        "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+        "author": Author(**details["author"].model_dump())
+        if details["author"]
+        else None,
+        "categories": [
+            Category(**c.model_dump(), post_count=0) for c in details["categories"]
+        ],
+        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
     }
     return BlogPost(**response_data)
 
@@ -234,7 +259,7 @@ def update_blog_post(
     post_id: int,
     post_data: BlogPostUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a blog post.
@@ -246,15 +271,14 @@ def update_blog_post(
     post = blog_crud.get_blog_post(db, post_id)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check if user is the author
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only edit your own blog posts"
+            detail="You can only edit your own blog posts",
         )
 
     try:
@@ -263,16 +287,23 @@ def update_blog_post(
 
         response_data = {
             **updated_post.model_dump(),
-            "author": Author(**details["author"].model_dump()) if details["author"] else None,
-            "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-            "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+            "author": Author(**details["author"].model_dump())
+            if details["author"]
+            else None,
+            "categories": [
+                Category(**c.model_dump(), post_count=0) for c in details["categories"]
+            ],
+            "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
         }
         return BlogPost(**response_data)
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to update blog post %s: %s", post_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update blog post: {str(e)}"
+            detail="Failed to update blog post.",
         )
 
 
@@ -280,7 +311,7 @@ def update_blog_post(
 def delete_blog_post(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a blog post.
@@ -292,22 +323,21 @@ def delete_blog_post(
     post = blog_crud.get_blog_post(db, post_id)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check if user is the author
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own blog posts"
+            detail="You can only delete your own blog posts",
         )
 
     success = blog_crud.delete_blog_post(db, post_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete blog post"
+            detail="Failed to delete blog post",
         )
 
 
@@ -315,7 +345,7 @@ def delete_blog_post(
 def publish_blog_post(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Publish a draft blog post.
@@ -327,15 +357,14 @@ def publish_blog_post(
     post = blog_crud.get_blog_post(db, post_id)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check if user is the author
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only publish your own blog posts"
+            detail="You can only publish your own blog posts",
         )
 
     published_post = blog_crud.publish_blog_post(db, post_id)
@@ -343,9 +372,13 @@ def publish_blog_post(
 
     response_data = {
         **published_post.model_dump(),
-        "author": Author(**details["author"].model_dump()) if details["author"] else None,
-        "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+        "author": Author(**details["author"].model_dump())
+        if details["author"]
+        else None,
+        "categories": [
+            Category(**c.model_dump(), post_count=0) for c in details["categories"]
+        ],
+        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
     }
     return BlogPost(**response_data)
 
@@ -354,7 +387,7 @@ def publish_blog_post(
 def unpublish_blog_post(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Unpublish a blog post (revert to draft).
@@ -366,15 +399,14 @@ def unpublish_blog_post(
     post = blog_crud.get_blog_post(db, post_id)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
         )
 
     # Check if user is the author
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only unpublish your own blog posts"
+            detail="You can only unpublish your own blog posts",
         )
 
     unpublished_post = blog_crud.unpublish_blog_post(db, post_id)
@@ -382,9 +414,13 @@ def unpublish_blog_post(
 
     response_data = {
         **unpublished_post.model_dump(),
-        "author": Author(**details["author"].model_dump()) if details["author"] else None,
-        "categories": [Category(**c.model_dump(), post_count=0) for c in details["categories"]],
-        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]]
+        "author": Author(**details["author"].model_dump())
+        if details["author"]
+        else None,
+        "categories": [
+            Category(**c.model_dump(), post_count=0) for c in details["categories"]
+        ],
+        "tags": [Tag(**t.model_dump(), post_count=0) for t in details["tags"]],
     }
     return BlogPost(**response_data)
 
@@ -393,11 +429,14 @@ def unpublish_blog_post(
 # CATEGORY ENDPOINTS
 # ========================================
 
-@router.post("/categories", response_model=Category, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/categories", response_model=Category, status_code=status.HTTP_201_CREATED
+)
 def create_category(
     category_data: CategoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new category.
@@ -411,16 +450,19 @@ def create_category(
         post_count = blog_crud.get_category_post_count(db, category.id)
         return Category(**category.model_dump(), post_count=post_count)
 
+    except HTTPException:
+        raise
     except Exception as e:
         # Check for unique constraint violation
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A category with this name already exists"
+                detail="A category with this name already exists",
             )
+        logger.error("Failed to create category: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create category: {str(e)}"
+            detail="Failed to create category.",
         )
 
 
@@ -428,7 +470,7 @@ def create_category(
 def get_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get list of all categories.
@@ -447,24 +489,21 @@ def get_categories(
             )
 
         return CategoryListResponse(
-            items=categories_with_counts,
-            total=total,
-            skip=skip,
-            limit=limit
+            items=categories_with_counts, total=total, skip=skip, limit=limit
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Failed to get categories: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get categories: {str(e)}"
+            detail="Failed to get categories.",
         )
 
 
 @router.get("/categories/{category_id}", response_model=Category)
-def get_category(
-    category_id: int,
-    db: Session = Depends(get_db)
-):
+def get_category(category_id: int, db: Session = Depends(get_db)):
     """
     Get a single category by ID.
 
@@ -473,8 +512,7 @@ def get_category(
     category = blog_crud.get_category(db, category_id)
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Category not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
     post_count = blog_crud.get_category_post_count(db, category_id)
@@ -482,10 +520,7 @@ def get_category(
 
 
 @router.get("/categories/by-slug/{slug}", response_model=Category)
-def get_category_by_slug(
-    slug: str,
-    db: Session = Depends(get_db)
-):
+def get_category_by_slug(slug: str, db: Session = Depends(get_db)):
     """
     Get a single category by slug.
 
@@ -494,8 +529,7 @@ def get_category_by_slug(
     category = blog_crud.get_category_by_slug(db, slug)
     if not category:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Category not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
     post_count = blog_crud.get_category_post_count(db, category.id)
@@ -507,7 +541,7 @@ def update_category(
     category_id: int,
     category_data: CategoryUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a category.
@@ -520,8 +554,7 @@ def update_category(
         updated_category = blog_crud.update_category(db, category_id, category_data)
         if not updated_category:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Category not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
             )
 
         post_count = blog_crud.get_category_post_count(db, category_id)
@@ -533,11 +566,12 @@ def update_category(
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A category with this name already exists"
+                detail="A category with this name already exists",
             )
+        logger.error("Failed to update category %s: %s", category_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update category: {str(e)}"
+            detail="Failed to update category.",
         )
 
 
@@ -545,7 +579,7 @@ def update_category(
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a category.
@@ -561,13 +595,12 @@ def delete_category(
         category = blog_crud.get_category(db, category_id)
         if not category:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Category not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
             )
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete category that has associated blog posts"
+                detail="Cannot delete category that has associated blog posts",
             )
 
 
@@ -575,11 +608,12 @@ def delete_category(
 # TAG ENDPOINTS
 # ========================================
 
+
 @router.post("/tags", response_model=Tag, status_code=status.HTTP_201_CREATED)
 def create_tag(
     tag_data: TagCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new tag.
@@ -593,15 +627,18 @@ def create_tag(
         post_count = blog_crud.get_tag_post_count(db, tag.id)
         return Tag(**tag.model_dump(), post_count=post_count)
 
+    except HTTPException:
+        raise
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A tag with this name already exists"
+                detail="A tag with this name already exists",
             )
+        logger.error("Failed to create tag: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create tag: {str(e)}"
+            detail="Failed to create tag.",
         )
 
 
@@ -609,7 +646,7 @@ def create_tag(
 def get_tags(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get list of all tags.
@@ -623,29 +660,22 @@ def get_tags(
         tags_with_counts = []
         for tag in tags:
             post_count = blog_crud.get_tag_post_count(db, tag.id)
-            tags_with_counts.append(
-                Tag(**tag.model_dump(), post_count=post_count)
-            )
+            tags_with_counts.append(Tag(**tag.model_dump(), post_count=post_count))
 
         return TagListResponse(
-            items=tags_with_counts,
-            total=total,
-            skip=skip,
-            limit=limit
+            items=tags_with_counts, total=total, skip=skip, limit=limit
         )
 
     except Exception as e:
+        logger.error("Failed to get tags: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get tags: {str(e)}"
+            detail="Failed to get tags.",
         )
 
 
 @router.get("/tags/{tag_id}", response_model=Tag)
-def get_tag(
-    tag_id: int,
-    db: Session = Depends(get_db)
-):
+def get_tag(tag_id: int, db: Session = Depends(get_db)):
     """
     Get a single tag by ID.
 
@@ -654,8 +684,7 @@ def get_tag(
     tag = blog_crud.get_tag(db, tag_id)
     if not tag:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tag not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
         )
 
     post_count = blog_crud.get_tag_post_count(db, tag_id)
@@ -663,10 +692,7 @@ def get_tag(
 
 
 @router.get("/tags/by-slug/{slug}", response_model=Tag)
-def get_tag_by_slug(
-    slug: str,
-    db: Session = Depends(get_db)
-):
+def get_tag_by_slug(slug: str, db: Session = Depends(get_db)):
     """
     Get a single tag by slug.
 
@@ -675,8 +701,7 @@ def get_tag_by_slug(
     tag = blog_crud.get_tag_by_slug(db, slug)
     if not tag:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tag not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
         )
 
     post_count = blog_crud.get_tag_post_count(db, tag.id)
@@ -688,7 +713,7 @@ def update_tag(
     tag_id: int,
     tag_data: TagUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a tag.
@@ -701,8 +726,7 @@ def update_tag(
         updated_tag = blog_crud.update_tag(db, tag_id, tag_data)
         if not updated_tag:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tag not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
             )
 
         post_count = blog_crud.get_tag_post_count(db, tag_id)
@@ -714,11 +738,12 @@ def update_tag(
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A tag with this name already exists"
+                detail="A tag with this name already exists",
             )
+        logger.error("Failed to update tag %s: %s", tag_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update tag: {str(e)}"
+            detail="Failed to update tag.",
         )
 
 
@@ -726,7 +751,7 @@ def update_tag(
 def delete_tag(
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a tag.
@@ -739,6 +764,5 @@ def delete_tag(
     success = blog_crud.delete_tag(db, tag_id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tag not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
         )

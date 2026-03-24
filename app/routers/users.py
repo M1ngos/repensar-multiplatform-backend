@@ -1,16 +1,26 @@
 # app/routers/users.py
 """User management endpoints."""
+
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User, UserType
 from app.crud.user import user_crud
 from app.crud.volunteer import volunteer_crud
-from app.schemas.user import UserSummary, UserDetail, UserUpdate, UserTypeResponse, UserCreate
+from app.schemas.user import (
+    UserSummary,
+    UserDetail,
+    UserUpdate,
+    UserTypeResponse,
+    UserCreate,
+)
 from app.schemas.common import PaginatedResponse, create_pagination_metadata
 from app.schemas.volunteer import VolunteerCreate
 from datetime import date
@@ -28,11 +38,12 @@ security = HTTPBearer()
 # USER ENDPOINTS
 # ========================================
 
+
 @router.post("/", response_model=UserDetail, status_code=status.HTTP_201_CREATED)
 def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new user (admin only).
@@ -41,12 +52,12 @@ def create_user(
     if current_user.user_type.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create users"
+            detail="Not authorized to create users",
         )
 
     try:
         user = user_crud.create_user(db, user_data)
-        
+
         # If user_type is volunteer, create volunteer profile
         if user_data.user_type == "volunteer":
             try:
@@ -54,13 +65,13 @@ def create_user(
                 volunteer_data = VolunteerCreate(
                     user_id=user.id,
                     volunteer_id=f"VLT{volunteer_count + 1:03d}",
-                    joined_date=date.today()
+                    joined_date=date.today(),
                 )
                 volunteer_crud.create_volunteer(db, volunteer_data)
             except Exception as e:
                 # If volunteer creation fails, still return user but log error
                 print(f"Warning: Failed to create volunteer profile: {e}")
-        
+
         return UserDetail(
             id=user.id,
             name=user.name,
@@ -77,19 +88,19 @@ def create_user(
             user_type=UserTypeResponse(
                 id=user.user_type.id,
                 name=user.user_type.name,
-                description=user.user_type.description
+                description=user.user_type.description,
             ),
-            oauth_provider=user.oauth_provider
+            oauth_provider=user.oauth_provider,
         )
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided"
         )
     except Exception as e:
+        logger.error("Failed to create user: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}"
+            detail="Failed to create user",
         )
 
 
@@ -97,12 +108,14 @@ def create_user(
 def get_users(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by name, email, department, or employee ID"),
+    search: Optional[str] = Query(
+        None, description="Search by name, email, department, or employee ID"
+    ),
     user_type_id: Optional[int] = Query(None, description="Filter by user type ID"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     department: Optional[str] = Query(None, description="Filter by department"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get list of users with filtering and search options.
@@ -116,10 +129,14 @@ def get_users(
     """
     try:
         # Check permissions - allow roles that manage assignments
-        if current_user.user_type.name not in ["admin", "staff_member", "project_manager"]:
+        if current_user.user_type.name not in [
+            "admin",
+            "staff_member",
+            "project_manager",
+        ]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to list users"
+                detail="Not authorized to list users",
             )
 
         # Calculate skip offset
@@ -133,7 +150,7 @@ def get_users(
             search=search,
             user_type_id=user_type_id,
             is_active=is_active,
-            department=department
+            department=department,
         )
 
         # Convert to summary format
@@ -145,7 +162,7 @@ def get_users(
                 user_type_name=user.user_type.name,
                 department=user.department,
                 is_active=user.is_active,
-                profile_picture=user.profile_picture
+                profile_picture=user.profile_picture,
             )
             for user in users
         ]
@@ -153,24 +170,21 @@ def get_users(
         # Create pagination metadata
         metadata = create_pagination_metadata(total, page, page_size)
 
-        return PaginatedResponse[UserSummary](
-            data=user_summaries,
-            metadata=metadata
-        )
+        return PaginatedResponse[UserSummary](data=user_summaries, metadata=metadata)
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve users: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve users: {str(e)}"
+            detail="Failed to retrieve users",
         )
 
 
 @router.get("/me", response_model=UserDetail)
 def get_current_user_profile(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get current authenticated user's profile."""
     try:
@@ -190,14 +204,15 @@ def get_current_user_profile(
             user_type=UserTypeResponse(
                 id=current_user.user_type.id,
                 name=current_user.user_type.name,
-                description=current_user.user_type.description
+                description=current_user.user_type.description,
             ),
-            oauth_provider=current_user.oauth_provider
+            oauth_provider=current_user.oauth_provider,
         )
     except Exception as e:
+        logger.error("Failed to retrieve user profile: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve user profile: {str(e)}"
+            detail="Failed to retrieve user profile",
         )
 
 
@@ -205,23 +220,24 @@ def get_current_user_profile(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get user by ID."""
     try:
         # Check permissions - users can view their own profile, admins/staff can view all
-        if (current_user.user_type.name not in ["admin", "staff_member"] and
-            current_user.id != user_id):
+        if (
+            current_user.user_type.name not in ["admin", "staff_member"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view this user"
+                detail="Not authorized to view this user",
             )
 
         user = user_crud.get_user(db, user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         return UserDetail(
@@ -240,17 +256,18 @@ def get_user(
             user_type=UserTypeResponse(
                 id=user.user_type.id,
                 name=user.user_type.name,
-                description=user.user_type.description
+                description=user.user_type.description,
             ),
-            oauth_provider=user.oauth_provider
+            oauth_provider=user.oauth_provider,
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to retrieve user %s: %s", user_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve user: {str(e)}"
+            detail="Failed to retrieve user",
         )
 
 
@@ -259,32 +276,32 @@ def update_user(
     user_id: int,
     update_data: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update user information."""
     try:
         # Check permissions - users can update their own profile, admins/staff can update all
-        if (current_user.user_type.name not in ["admin", "staff_member"] and
-            current_user.id != user_id):
+        if (
+            current_user.user_type.name not in ["admin", "staff_member"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this user"
+                detail="Not authorized to update this user",
             )
 
         # Check if user exists
         user = user_crud.get_user(db, user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         # Update user
         updated_user = user_crud.update_user(db, user_id, update_data)
         if not updated_user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Failed to update user"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Failed to update user"
             )
 
         return UserDetail(
@@ -303,17 +320,18 @@ def update_user(
             user_type=UserTypeResponse(
                 id=updated_user.user_type.id,
                 name=updated_user.user_type.name,
-                description=updated_user.user_type.description
+                description=updated_user.user_type.description,
             ),
-            oauth_provider=updated_user.oauth_provider
+            oauth_provider=updated_user.oauth_provider,
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to update user %s: %s", user_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update user: {str(e)}"
+            detail="Failed to update user",
         )
 
 
@@ -321,7 +339,7 @@ def update_user(
 def deactivate_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Deactivate user (soft delete)."""
     try:
@@ -329,21 +347,20 @@ def deactivate_user(
         if current_user.user_type.name != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to deactivate users"
+                detail="Not authorized to deactivate users",
             )
 
         # Prevent self-deactivation
         if current_user.id == user_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot deactivate your own account"
+                detail="Cannot deactivate your own account",
             )
 
         success = user_crud.deactivate_user(db, user_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         return {"message": "User deactivated successfully"}
@@ -351,9 +368,10 @@ def deactivate_user(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to deactivate user %s: %s", user_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to deactivate user: {str(e)}"
+            detail="Failed to deactivate user",
         )
 
 
@@ -361,7 +379,7 @@ def deactivate_user(
 def activate_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Activate user."""
     try:
@@ -369,14 +387,13 @@ def activate_user(
         if current_user.user_type.name != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to activate users"
+                detail="Not authorized to activate users",
             )
 
         success = user_crud.activate_user(db, user_id)
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         return {"message": "User activated successfully"}
@@ -384,9 +401,10 @@ def activate_user(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to activate user %s: %s", user_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to activate user: {str(e)}"
+            detail="Failed to activate user",
         )
 
 
@@ -394,41 +412,47 @@ def activate_user(
 # ROLE MANAGEMENT
 # ========================================
 
+
 @router.put("/{user_id}/role", response_model=UserDetail)
 def change_user_role(
     user_id: int,
-    user_type_name: str = Query(..., description="New role name (e.g. admin, staff_member, project_manager, volunteer)"),
+    user_type_name: str = Query(
+        ...,
+        description="New role name (e.g. admin, staff_member, project_manager, volunteer)",
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Change a user's role. Admin only. Automatically manages the volunteer profile."""
     try:
         if current_user.user_type.name != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to change user roles"
+                detail="Not authorized to change user roles",
             )
 
         if current_user.id == user_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot change your own role"
+                detail="Cannot change your own role",
             )
 
         user = user_crud.get_user(db, user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         # Resolve new user type
         from sqlmodel import select
-        new_user_type = db.exec(select(UserType).where(UserType.name == user_type_name)).first()
+
+        new_user_type = db.exec(
+            select(UserType).where(UserType.name == user_type_name)
+        ).first()
         if not new_user_type:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid role: {user_type_name}"
+                detail=f"Invalid role: {user_type_name}",
             )
 
         old_type_name = user.user_type.name
@@ -460,7 +484,7 @@ def change_user_role(
                 volunteer_data = VolunteerCreate(
                     user_id=user_id,
                     volunteer_id=f"VLT{volunteer_count + 1:03d}",
-                    joined_date=date.today()
+                    joined_date=date.today(),
                 )
                 volunteer_crud.create_volunteer(db, volunteer_data)
 
@@ -480,17 +504,18 @@ def change_user_role(
             user_type=UserTypeResponse(
                 id=user.user_type.id,
                 name=user.user_type.name,
-                description=user.user_type.description
+                description=user.user_type.description,
             ),
-            oauth_provider=user.oauth_provider
+            oauth_provider=user.oauth_provider,
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Failed to change user role for %s: %s", user_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to change user role: {str(e)}"
+            detail="Failed to change user role",
         )
 
 
@@ -498,40 +523,37 @@ def change_user_role(
 # UTILITY ENDPOINTS
 # ========================================
 
+
 @router.get("/types/all", response_model=list[UserTypeResponse])
 def get_user_types(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get all user types."""
     try:
         user_types = user_crud.get_user_types(db)
         return [
-            UserTypeResponse(
-                id=ut.id,
-                name=ut.name,
-                description=ut.description
-            )
+            UserTypeResponse(id=ut.id, name=ut.name, description=ut.description)
             for ut in user_types
         ]
     except Exception as e:
+        logger.error("Failed to retrieve user types: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve user types: {str(e)}"
+            detail="Failed to retrieve user types",
         )
 
 
 @router.get("/departments/all", response_model=list[str])
 def get_departments(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get list of all departments."""
     try:
         departments = user_crud.get_departments(db)
         return departments
     except Exception as e:
+        logger.error("Failed to retrieve departments: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve departments: {str(e)}"
+            detail="Failed to retrieve departments",
         )

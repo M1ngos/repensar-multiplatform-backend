@@ -216,6 +216,7 @@ class VolunteerTimeLogUpdate(BaseModel):
 
 class VolunteerTimeLogApproval(BaseModel):
     approved: bool
+    notes: Optional[str] = None
 
 
 class VolunteerTimeLog(VolunteerTimeLogBase):

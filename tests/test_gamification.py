@@ -662,8 +662,9 @@ class TestIntegrationScenarios:
         )
 
         assert len(leaderboard.rankings) == 3
-        assert leaderboard.rankings[0]["rank"] == 1
-        assert leaderboard.rankings[0]["value"] == 1000
+        # Pydantic v2 coerces ranking dicts to LeaderboardRanking model objects
+        assert leaderboard.rankings[0].rank == 1
+        assert leaderboard.rankings[0].value == 1000
 
     def test_streak_tracking_scenario(self):
         """Test tracking volunteer activity streaks"""
