@@ -31,46 +31,124 @@ import httpx
 from faker import Faker
 
 # Initialize Faker for generating realistic mock data
-fake = Faker('pt_BR')  # Use Portuguese locale
+fake = Faker("pt_BR")  # Use Portuguese locale
 
 # Vocabulário ambiental em português
 ADJETIVOS_AMBIENTAIS = [
-    "Sustentável", "Verde", "Ecológico", "Renovável", "Orgânico", "Carbono Neutro",
-    "Lixo Zero", "Resiliente ao Clima", "Biodiverso", "Conservacionista",
-    "Regenerativo", "Positivo para a Natureza", "Baixo Impacto", "Economia Circular", "Baseado na Natureza"
+    "Sustentável",
+    "Verde",
+    "Ecológico",
+    "Renovável",
+    "Orgânico",
+    "Carbono Neutro",
+    "Lixo Zero",
+    "Resiliente ao Clima",
+    "Biodiverso",
+    "Conservacionista",
+    "Regenerativo",
+    "Positivo para a Natureza",
+    "Baixo Impacto",
+    "Economia Circular",
+    "Baseado na Natureza",
 ]
 
 SUBSTANTIVOS_AMBIENTAIS = [
-    "Floresta", "Oceano", "Rio", "Mangue", "Recife de Coral", "Cerrado",
-    "Ecossistema", "Corredor Ecológico", "Parque Urbano", "Horta Comunitária", "Bacia Hidrográfica",
-    "Reserva Marinha", "Reserva Natural", "Jardim Botânico", "Mata Atlântica", "Pantanal"
+    "Floresta",
+    "Oceano",
+    "Rio",
+    "Mangue",
+    "Recife de Coral",
+    "Cerrado",
+    "Ecossistema",
+    "Corredor Ecológico",
+    "Parque Urbano",
+    "Horta Comunitária",
+    "Bacia Hidrográfica",
+    "Reserva Marinha",
+    "Reserva Natural",
+    "Jardim Botânico",
+    "Mata Atlântica",
+    "Pantanal",
 ]
 
 ACOES_AMBIENTAIS = [
-    "Restauração", "Conservação", "Proteção", "Reflorestamento", "Reabilitação",
-    "Preservação", "Revitalização", "Regeneração", "Recuperação", "Valorização",
-    "Monitoramento", "Gestão", "Cultivo", "Renaturalização", "Remediação"
+    "Restauração",
+    "Conservação",
+    "Proteção",
+    "Reflorestamento",
+    "Reabilitação",
+    "Preservação",
+    "Revitalização",
+    "Regeneração",
+    "Recuperação",
+    "Valorização",
+    "Monitoramento",
+    "Gestão",
+    "Cultivo",
+    "Renaturalização",
+    "Remediação",
 ]
 
 TIPOS_PROJETO = [
-    "Iniciativa de Plantio de Árvores", "Limpeza Costeira", "Restauração de Habitat",
-    "Projeto de Arborização Urbana", "Programa Carbono Zero", "Campanha Redução de Resíduos",
-    "Transição Energias Renováveis", "Monitoramento Qualidade da Água", "Jardim de Polinizadores",
-    "Reintrodução de Espécies Nativas", "Programa de Compostagem", "Infraestrutura Verde",
-    "Plano de Ação Climática", "Inventário de Biodiversidade", "Programa Educação Ambiental"
+    "Iniciativa de Plantio de Árvores",
+    "Limpeza Costeira",
+    "Restauração de Habitat",
+    "Projeto de Arborização Urbana",
+    "Programa Carbono Zero",
+    "Campanha Redução de Resíduos",
+    "Transição Energias Renováveis",
+    "Monitoramento Qualidade da Água",
+    "Jardim de Polinizadores",
+    "Reintrodução de Espécies Nativas",
+    "Programa de Compostagem",
+    "Infraestrutura Verde",
+    "Plano de Ação Climática",
+    "Inventário de Biodiversidade",
+    "Programa Educação Ambiental",
 ]
 
 PREFIXOS_TAREFA = [
-    "Plantar", "Monitorar", "Avaliar", "Inventariar", "Coletar", "Analisar", "Documentar",
-    "Instalar", "Remover", "Limpar", "Restaurar", "Proteger", "Manter", "Educar",
-    "Coordenar", "Organizar", "Implementar", "Avaliar", "Pesquisar", "Mapear"
+    "Plantar",
+    "Monitorar",
+    "Avaliar",
+    "Inventariar",
+    "Coletar",
+    "Analisar",
+    "Documentar",
+    "Instalar",
+    "Remover",
+    "Limpar",
+    "Restaurar",
+    "Proteger",
+    "Manter",
+    "Educar",
+    "Coordenar",
+    "Organizar",
+    "Implementar",
+    "Avaliar",
+    "Pesquisar",
+    "Mapear",
 ]
 
 OBJETOS_TAREFA = [
-    "árvores nativas", "mudas", "espécies invasoras", "amostras de água", "qualidade do solo",
-    "populações de fauna", "emissões de carbono", "fluxos de resíduos", "painéis solares",
-    "jardins de chuva", "composteiras", "estações de reciclagem", "habitats", "trilhas",
-    "sinalização educativa", "materiais didáticos", "sensores ambientais", "equipamentos de monitoramento"
+    "árvores nativas",
+    "mudas",
+    "espécies invasoras",
+    "amostras de água",
+    "qualidade do solo",
+    "populações de fauna",
+    "emissões de carbono",
+    "fluxos de resíduos",
+    "painéis solares",
+    "jardins de chuva",
+    "composteiras",
+    "estações de reciclagem",
+    "habitats",
+    "trilhas",
+    "sinalização educativa",
+    "materiais didáticos",
+    "sensores ambientais",
+    "equipamentos de monitoramento",
 ]
 
 ATIVIDADES_VOLUNTARIO = [
@@ -83,53 +161,244 @@ ATIVIDADES_VOLUNTARIO = [
     "Removeu {} kg de resíduos marinhos da costa",
     "Realizou inventário de fauna identificando {} espécies",
     "Manteve {} sistemas de compostagem em escolas locais",
-    "Mapeou {} km de trilhas ecológicas na área de conservação"
+    "Mapeou {} km de trilhas ecológicas na área de conservação",
 ]
 
 # Gamification templates
 BADGE_TEMPLATES = [
     # Time-based badges
-    {"name": "Primeiro Passo", "description": "Completou suas primeiras 10 horas de voluntariado", "category": "time", "rarity": "common", "points_value": 10, "color": "#4CAF50"},
-    {"name": "Dedicado", "description": "Completou 50 horas de voluntariado", "category": "time", "rarity": "common", "points_value": 25, "color": "#8BC34A"},
-    {"name": "Comprometido", "description": "Completou 100 horas de voluntariado", "category": "time", "rarity": "rare", "points_value": 50, "color": "#2196F3"},
-    {"name": "Guardião Ambiental", "description": "Completou 250 horas de voluntariado", "category": "time", "rarity": "epic", "points_value": 100, "color": "#9C27B0"},
-    {"name": "Lenda Verde", "description": "Completou 500 horas de voluntariado", "category": "time", "rarity": "legendary", "points_value": 250, "color": "#FFD700"},
+    {
+        "name": "Primeiro Passo",
+        "description": "Completou suas primeiras 10 horas de voluntariado",
+        "category": "time",
+        "rarity": "common",
+        "points_value": 10,
+        "color": "#4CAF50",
+    },
+    {
+        "name": "Dedicado",
+        "description": "Completou 50 horas de voluntariado",
+        "category": "time",
+        "rarity": "common",
+        "points_value": 25,
+        "color": "#8BC34A",
+    },
+    {
+        "name": "Comprometido",
+        "description": "Completou 100 horas de voluntariado",
+        "category": "time",
+        "rarity": "rare",
+        "points_value": 50,
+        "color": "#2196F3",
+    },
+    {
+        "name": "Guardião Ambiental",
+        "description": "Completou 250 horas de voluntariado",
+        "category": "time",
+        "rarity": "epic",
+        "points_value": 100,
+        "color": "#9C27B0",
+    },
+    {
+        "name": "Lenda Verde",
+        "description": "Completou 500 horas de voluntariado",
+        "category": "time",
+        "rarity": "legendary",
+        "points_value": 250,
+        "color": "#FFD700",
+    },
     # Project badges
-    {"name": "Colaborador", "description": "Participou de seu primeiro projeto", "category": "projects", "rarity": "common", "points_value": 15, "color": "#00BCD4"},
-    {"name": "Multi-Projetos", "description": "Participou de 5 projetos diferentes", "category": "projects", "rarity": "rare", "points_value": 40, "color": "#3F51B5"},
-    {"name": "Veterano de Projetos", "description": "Participou de 10 projetos diferentes", "category": "projects", "rarity": "epic", "points_value": 80, "color": "#673AB7"},
+    {
+        "name": "Colaborador",
+        "description": "Participou de seu primeiro projeto",
+        "category": "projects",
+        "rarity": "common",
+        "points_value": 15,
+        "color": "#00BCD4",
+    },
+    {
+        "name": "Multi-Projetos",
+        "description": "Participou de 5 projetos diferentes",
+        "category": "projects",
+        "rarity": "rare",
+        "points_value": 40,
+        "color": "#3F51B5",
+    },
+    {
+        "name": "Veterano de Projetos",
+        "description": "Participou de 10 projetos diferentes",
+        "category": "projects",
+        "rarity": "epic",
+        "points_value": 80,
+        "color": "#673AB7",
+    },
     # Skill badges
-    {"name": "Aprendiz", "description": "Adquiriu sua primeira habilidade", "category": "skills", "rarity": "common", "points_value": 10, "color": "#FF9800"},
-    {"name": "Versátil", "description": "Possui 5 habilidades diferentes", "category": "skills", "rarity": "rare", "points_value": 35, "color": "#FF5722"},
-    {"name": "Especialista", "description": "Alcançou nível expert em uma habilidade", "category": "skills", "rarity": "epic", "points_value": 75, "color": "#E91E63"},
+    {
+        "name": "Aprendiz",
+        "description": "Adquiriu sua primeira habilidade",
+        "category": "skills",
+        "rarity": "common",
+        "points_value": 10,
+        "color": "#FF9800",
+    },
+    {
+        "name": "Versátil",
+        "description": "Possui 5 habilidades diferentes",
+        "category": "skills",
+        "rarity": "rare",
+        "points_value": 35,
+        "color": "#FF5722",
+    },
+    {
+        "name": "Especialista",
+        "description": "Alcançou nível expert em uma habilidade",
+        "category": "skills",
+        "rarity": "epic",
+        "points_value": 75,
+        "color": "#E91E63",
+    },
     # Leadership badges
-    {"name": "Mentor", "description": "Ajudou a treinar novos voluntários", "category": "leadership", "rarity": "rare", "points_value": 45, "color": "#607D8B"},
-    {"name": "Líder de Equipe", "description": "Liderou uma equipe em um projeto", "category": "leadership", "rarity": "epic", "points_value": 90, "color": "#795548"},
+    {
+        "name": "Mentor",
+        "description": "Ajudou a treinar novos voluntários",
+        "category": "leadership",
+        "rarity": "rare",
+        "points_value": 45,
+        "color": "#607D8B",
+    },
+    {
+        "name": "Líder de Equipe",
+        "description": "Liderou uma equipe em um projeto",
+        "category": "leadership",
+        "rarity": "epic",
+        "points_value": 90,
+        "color": "#795548",
+    },
     # Special badges
-    {"name": "Pioneiro", "description": "Um dos primeiros voluntários da plataforma", "category": "special", "rarity": "legendary", "points_value": 200, "color": "#F44336", "is_secret": True},
-    {"name": "Maratonista Verde", "description": "Completou 8 horas em um único dia", "category": "special", "rarity": "rare", "points_value": 50, "color": "#009688"},
-    {"name": "Consistente", "description": "Manteve uma sequência de 7 dias consecutivos", "category": "special", "rarity": "rare", "points_value": 40, "color": "#CDDC39"},
+    {
+        "name": "Pioneiro",
+        "description": "Um dos primeiros voluntários da plataforma",
+        "category": "special",
+        "rarity": "legendary",
+        "points_value": 200,
+        "color": "#F44336",
+        "is_secret": True,
+    },
+    {
+        "name": "Maratonista Verde",
+        "description": "Completou 8 horas em um único dia",
+        "category": "special",
+        "rarity": "rare",
+        "points_value": 50,
+        "color": "#009688",
+    },
+    {
+        "name": "Consistente",
+        "description": "Manteve uma sequência de 7 dias consecutivos",
+        "category": "special",
+        "rarity": "rare",
+        "points_value": 40,
+        "color": "#CDDC39",
+    },
 ]
 
 ACHIEVEMENT_TEMPLATES = [
     # Hours-based achievements
-    {"name": "Primeiras 10 Horas", "description": "Complete 10 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 10}, "points_reward": 50},
-    {"name": "50 Horas de Impacto", "description": "Complete 50 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 50}, "points_reward": 150},
-    {"name": "Centurião Verde", "description": "Complete 100 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 100}, "points_reward": 300},
-    {"name": "Mestre do Tempo", "description": "Complete 250 horas de voluntariado", "achievement_type": "hours_logged", "criteria": {"hours_required": 250}, "points_reward": 500},
+    {
+        "name": "Primeiras 10 Horas",
+        "description": "Complete 10 horas de voluntariado",
+        "achievement_type": "hours_logged",
+        "criteria": {"hours_required": 10},
+        "points_reward": 50,
+    },
+    {
+        "name": "50 Horas de Impacto",
+        "description": "Complete 50 horas de voluntariado",
+        "achievement_type": "hours_logged",
+        "criteria": {"hours_required": 50},
+        "points_reward": 150,
+    },
+    {
+        "name": "Centurião Verde",
+        "description": "Complete 100 horas de voluntariado",
+        "achievement_type": "hours_logged",
+        "criteria": {"hours_required": 100},
+        "points_reward": 300,
+    },
+    {
+        "name": "Mestre do Tempo",
+        "description": "Complete 250 horas de voluntariado",
+        "achievement_type": "hours_logged",
+        "criteria": {"hours_required": 250},
+        "points_reward": 500,
+    },
     # Task-based achievements
-    {"name": "Primeira Tarefa", "description": "Complete sua primeira tarefa", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 1}, "points_reward": 25},
-    {"name": "Realizador", "description": "Complete 10 tarefas", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 10}, "points_reward": 100},
-    {"name": "Super Realizador", "description": "Complete 50 tarefas", "achievement_type": "tasks_completed", "criteria": {"tasks_required": 50}, "points_reward": 250},
+    {
+        "name": "Primeira Tarefa",
+        "description": "Complete sua primeira tarefa",
+        "achievement_type": "tasks_completed",
+        "criteria": {"tasks_required": 1},
+        "points_reward": 25,
+    },
+    {
+        "name": "Realizador",
+        "description": "Complete 10 tarefas",
+        "achievement_type": "tasks_completed",
+        "criteria": {"tasks_required": 10},
+        "points_reward": 100,
+    },
+    {
+        "name": "Super Realizador",
+        "description": "Complete 50 tarefas",
+        "achievement_type": "tasks_completed",
+        "criteria": {"tasks_required": 50},
+        "points_reward": 250,
+    },
     # Project-based achievements
-    {"name": "Primeiro Projeto", "description": "Participe de seu primeiro projeto", "achievement_type": "projects_completed", "criteria": {"projects_required": 1}, "points_reward": 30},
-    {"name": "Explorador de Projetos", "description": "Participe de 5 projetos", "achievement_type": "projects_completed", "criteria": {"projects_required": 5}, "points_reward": 120},
+    {
+        "name": "Primeiro Projeto",
+        "description": "Participe de seu primeiro projeto",
+        "achievement_type": "projects_completed",
+        "criteria": {"projects_required": 1},
+        "points_reward": 30,
+    },
+    {
+        "name": "Explorador de Projetos",
+        "description": "Participe de 5 projetos",
+        "achievement_type": "projects_completed",
+        "criteria": {"projects_required": 5},
+        "points_reward": 120,
+    },
     # Streak achievements
-    {"name": "Semana Perfeita", "description": "Mantenha uma sequência de 7 dias", "achievement_type": "consecutive_days", "criteria": {"days_required": 7}, "points_reward": 75},
-    {"name": "Mês de Dedicação", "description": "Mantenha uma sequência de 30 dias", "achievement_type": "consecutive_days", "criteria": {"days_required": 30}, "points_reward": 200},
+    {
+        "name": "Semana Perfeita",
+        "description": "Mantenha uma sequência de 7 dias",
+        "achievement_type": "consecutive_days",
+        "criteria": {"days_required": 7},
+        "points_reward": 75,
+    },
+    {
+        "name": "Mês de Dedicação",
+        "description": "Mantenha uma sequência de 30 dias",
+        "achievement_type": "consecutive_days",
+        "criteria": {"days_required": 30},
+        "points_reward": 200,
+    },
     # Skill achievements
-    {"name": "Primeira Habilidade", "description": "Adquira sua primeira habilidade", "achievement_type": "skills_acquired", "criteria": {"skills_required": 1}, "points_reward": 20},
-    {"name": "Colecionador de Habilidades", "description": "Adquira 5 habilidades", "achievement_type": "skills_acquired", "criteria": {"skills_required": 5}, "points_reward": 100},
+    {
+        "name": "Primeira Habilidade",
+        "description": "Adquira sua primeira habilidade",
+        "achievement_type": "skills_acquired",
+        "criteria": {"skills_required": 1},
+        "points_reward": 20,
+    },
+    {
+        "name": "Colecionador de Habilidades",
+        "description": "Adquira 5 habilidades",
+        "achievement_type": "skills_acquired",
+        "criteria": {"skills_required": 5},
+        "points_reward": 100,
+    },
 ]
 
 POINTS_EVENT_DESCRIPTIONS = [
@@ -143,15 +412,17 @@ POINTS_EVENT_DESCRIPTIONS = [
     "Reconhecimento especial",
 ]
 
+
 def generate_environmental_project_name():
     """Gera nome de projeto ambiental em português."""
     templates = [
         f"{random.choice(ADJETIVOS_AMBIENTAIS)} {random.choice(SUBSTANTIVOS_AMBIENTAIS)} - {random.choice(ACOES_AMBIENTAIS)}",
         f"{random.choice(TIPOS_PROJETO)}",
         f"Iniciativa {random.choice(ACOES_AMBIENTAIS)} {fake.city()}",
-        f"Programa {random.choice(SUBSTANTIVOS_AMBIENTAIS)} {random.choice(ADJETIVOS_AMBIENTAIS)}"
+        f"Programa {random.choice(SUBSTANTIVOS_AMBIENTAIS)} {random.choice(ADJETIVOS_AMBIENTAIS)}",
     ]
     return random.choice(templates)
+
 
 def generate_environmental_description():
     """Gera descrição de projeto ambiental em português."""
@@ -159,13 +430,15 @@ def generate_environmental_description():
         f"Iniciativa comunitária para restaurar e proteger ecossistemas de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} através de atividades de {random.choice(ACOES_AMBIENTAIS).lower()} e engajamento voluntário.",
         f"Este projeto foca em criar soluções {random.choice(ADJETIVOS_AMBIENTAIS).lower()}s para conservação de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} e resiliência climática.",
         f"Trabalhando com comunidades locais para implementar práticas {random.choice(ADJETIVOS_AMBIENTAIS).lower()}s que melhoram a biodiversidade e saúde dos ecossistemas.",
-        f"Programa abrangente de {random.choice(ACOES_AMBIENTAIS).lower()} visando a reabilitação de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} e sustentabilidade de longo prazo."
+        f"Programa abrangente de {random.choice(ACOES_AMBIENTAIS).lower()} visando a reabilitação de {random.choice(SUBSTANTIVOS_AMBIENTAIS).lower()} e sustentabilidade de longo prazo.",
     ]
     return random.choice(templates)
+
 
 def generate_task_title():
     """Gera título de tarefa ambiental em português."""
     return f"{random.choice(PREFIXOS_TAREFA)} {random.choice(OBJETOS_TAREFA)}"
+
 
 def generate_volunteer_activity():
     """Gera descrição de atividade voluntária em português."""
@@ -173,16 +446,17 @@ def generate_volunteer_activity():
     number = random.randint(5, 100)
     return activity.format(number)
 
+
 # ANSI color codes for terminal output
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    MAGENTA = '\033[95m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    MAGENTA = "\033[95m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class SeedingStats:
@@ -198,7 +472,9 @@ class SeedingStats:
     def record_created(self, entity_type: str):
         self.created[entity_type] += 1
 
-    def record_failed(self, entity_type: str, error: str, status_code: Optional[int] = None):
+    def record_failed(
+        self, entity_type: str, error: str, status_code: Optional[int] = None
+    ):
         self.failed[entity_type] += 1
         if status_code:
             self.errors.append(f"[{entity_type}] HTTP {status_code}: {error}")
@@ -216,9 +492,9 @@ class SeedingStats:
 
     def print_summary(self):
         """Print a summary of the seeding process."""
-        print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*80}{Colors.RESET}")
+        print(f"\n{Colors.BOLD}{Colors.CYAN}{'=' * 80}{Colors.RESET}")
         print(f"{Colors.BOLD}{Colors.CYAN}SEEDING SUMMARY{Colors.RESET}")
-        print(f"{Colors.CYAN}{'='*80}{Colors.RESET}\n")
+        print(f"{Colors.CYAN}{'=' * 80}{Colors.RESET}\n")
 
         print(f"{Colors.BOLD}Entities Created:{Colors.RESET}")
         for entity_type, count in sorted(self.created.items()):
@@ -239,9 +515,11 @@ class SeedingStats:
             for error in self.errors[:10]:  # Show first 10 errors
                 print(f"  {Colors.RED}•{Colors.RESET} {error}")
             if len(self.errors) > 10:
-                print(f"  {Colors.YELLOW}... and {len(self.errors) - 10} more errors{Colors.RESET}")
+                print(
+                    f"  {Colors.YELLOW}... and {len(self.errors) - 10} more errors{Colors.RESET}"
+                )
 
-        print(f"\n{Colors.CYAN}{'='*80}{Colors.RESET}")
+        print(f"\n{Colors.CYAN}{'=' * 80}{Colors.RESET}")
 
         # Return exit code based on success
         return 0 if self.assertions_failed == 0 and not self.failed else 1
@@ -250,8 +528,14 @@ class SeedingStats:
 class DataSeeder:
     """Main class for seeding data into the Repensar backend."""
 
-    def __init__(self, api_url: str, dry_run: bool = False, verbose: bool = False, delay: float = 0.1):
-        self.api_url = api_url.rstrip('/')
+    def __init__(
+        self,
+        api_url: str,
+        dry_run: bool = False,
+        verbose: bool = False,
+        delay: float = 0.1,
+    ):
+        self.api_url = api_url.rstrip("/")
         self.dry_run = dry_run
         self.verbose = verbose
         self.delay = delay  # Delay between requests to avoid overwhelming the API
@@ -284,12 +568,18 @@ class DataSeeder:
 
         print(f"{Colors.BOLD}{Colors.BLUE}Repensar Data Seeding Script{Colors.RESET}")
         print(f"API URL: {Colors.CYAN}{self.api_url}{Colors.RESET}")
-        print(f"Dry Run: {Colors.YELLOW if dry_run else Colors.GREEN}{dry_run}{Colors.RESET}")
-        print(f"Verbose: {Colors.YELLOW if verbose else Colors.GREEN}{verbose}{Colors.RESET}\n")
+        print(
+            f"Dry Run: {Colors.YELLOW if dry_run else Colors.GREEN}{dry_run}{Colors.RESET}"
+        )
+        print(
+            f"Verbose: {Colors.YELLOW if verbose else Colors.GREEN}{verbose}{Colors.RESET}\n"
+        )
 
-    def _make_request(self, method: str, endpoint: str, entity_type: Optional[str] = None, **kwargs) -> Optional[httpx.Response]:
+    def _make_request(
+        self, method: str, endpoint: str, entity_type: Optional[str] = None, **kwargs
+    ) -> Optional[httpx.Response]:
         """Make an HTTP request with error handling."""
-        if self.dry_run and method.upper() not in ['GET', 'HEAD']:
+        if self.dry_run and method.upper() not in ["GET", "HEAD"]:
             print(f"{Colors.YELLOW}[DRY RUN]{Colors.RESET} {method} {endpoint}")
             return None
 
@@ -303,7 +593,10 @@ class DataSeeder:
                 should_log = self.verbose
                 if entity_type:
                     self.error_counts[entity_type] += 1
-                    should_log = should_log or self.error_counts[entity_type] <= self.max_errors_per_type
+                    should_log = (
+                        should_log
+                        or self.error_counts[entity_type] <= self.max_errors_per_type
+                    )
 
                 if should_log:
                     error_detail = ""
@@ -313,10 +606,17 @@ class DataSeeder:
                     except:
                         error_detail = response.text[:200]  # First 200 chars
 
-                    print(f"\n{Colors.RED}✗ {method} {endpoint} - Status {response.status_code}{Colors.RESET}")
+                    print(
+                        f"\n{Colors.RED}✗ {method} {endpoint} - Status {response.status_code}{Colors.RESET}"
+                    )
                     print(f"  {Colors.YELLOW}Error: {error_detail}{Colors.RESET}")
-                elif entity_type and self.error_counts[entity_type] == self.max_errors_per_type + 1:
-                    print(f"\n{Colors.YELLOW}[Suppressing further {entity_type} errors...]{Colors.RESET}")
+                elif (
+                    entity_type
+                    and self.error_counts[entity_type] == self.max_errors_per_type + 1
+                ):
+                    print(
+                        f"\n{Colors.YELLOW}[Suppressing further {entity_type} errors...]{Colors.RESET}"
+                    )
 
             return response
         except Exception as e:
@@ -333,8 +633,12 @@ class DataSeeder:
         percentage = (current / total) * 100
         bar_length = 40
         filled = int(bar_length * current / total)
-        bar = '█' * filled + '░' * (bar_length - filled)
-        print(f"\r{Colors.CYAN}{entity_type}:{Colors.RESET} [{bar}] {current}/{total} ({percentage:.1f}%)", end='', flush=True)
+        bar = "█" * filled + "░" * (bar_length - filled)
+        print(
+            f"\r{Colors.CYAN}{entity_type}:{Colors.RESET} [{bar}] {current}/{total} ({percentage:.1f}%)",
+            end="",
+            flush=True,
+        )
         if current == total:
             print()  # New line when complete
 
@@ -348,7 +652,7 @@ class DataSeeder:
             "email": "admin@repensar.org",
             "password": "AdminPass123!",
             "phone": "+1234567890",
-            "user_type": "admin"
+            "user_type": "admin",
         }
 
         # Register admin (may fail if already exists, which is fine)
@@ -356,27 +660,52 @@ class DataSeeder:
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Admin user registered")
             self.stats.record_created("Admin User")
-            self.credentials.append({"type": "admin", "name": admin_data["name"], "email": admin_data["email"], "password": admin_data["password"]})
+            self.credentials.append(
+                {
+                    "type": "admin",
+                    "name": admin_data["name"],
+                    "email": admin_data["email"],
+                    "password": admin_data["password"],
+                }
+            )
         elif response and response.status_code == 400:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Admin user already exists, attempting login")
-            self.credentials.append({"type": "admin", "name": admin_data["name"], "email": admin_data["email"], "password": admin_data["password"]})
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Admin user already exists, attempting login"
+            )
+            self.credentials.append(
+                {
+                    "type": "admin",
+                    "name": admin_data["name"],
+                    "email": admin_data["email"],
+                    "password": admin_data["password"],
+                }
+            )
         else:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Admin registration returned status {response.status_code if response else 'None'}, attempting login anyway")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Admin registration returned status {response.status_code if response else 'None'}, attempting login anyway"
+            )
 
         # Login admin
-        login_response = self._make_request("POST", "/auth/login", json={
-            "email": admin_data["email"],
-            "password": admin_data["password"]
-        })
+        login_response = self._make_request(
+            "POST",
+            "/auth/login",
+            json={"email": admin_data["email"], "password": admin_data["password"]},
+        )
 
         if login_response and login_response.status_code == 200:
             self.admin_token = login_response.json()["access_token"]
             print(f"{Colors.GREEN}✓{Colors.RESET} Admin authenticated")
-            self.stats.assert_true(self.admin_token is not None, "Admin token should be set")
+            self.stats.assert_true(
+                self.admin_token is not None, "Admin token should be set"
+            )
         else:
-            print(f"{Colors.RED}✗{Colors.RESET} Admin authentication failed - cannot proceed")
+            print(
+                f"{Colors.RED}✗{Colors.RESET} Admin authentication failed - cannot proceed"
+            )
             self.stats.record_failed("Admin User", "Authentication failed")
-            raise Exception("Failed to authenticate admin user. Please check credentials and API availability.")
+            raise Exception(
+                "Failed to authenticate admin user. Please check credentials and API availability."
+            )
 
         # Project Manager user
         manager_data = {
@@ -384,30 +713,53 @@ class DataSeeder:
             "email": "manager@repensar.org",
             "password": "ManagerPass123!",
             "phone": "+1234567891",
-            "user_type": "project_manager"
+            "user_type": "project_manager",
         }
 
         response = self._make_request("POST", "/auth/register", json=manager_data)
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Manager user registered")
             self.stats.record_created("Manager User")
-            self.credentials.append({"type": "project_manager", "name": manager_data["name"], "email": manager_data["email"], "password": manager_data["password"]})
+            self.credentials.append(
+                {
+                    "type": "project_manager",
+                    "name": manager_data["name"],
+                    "email": manager_data["email"],
+                    "password": manager_data["password"],
+                }
+            )
         elif response and response.status_code == 400:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Manager user already exists, attempting login")
-            self.credentials.append({"type": "project_manager", "name": manager_data["name"], "email": manager_data["email"], "password": manager_data["password"]})
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Manager user already exists, attempting login"
+            )
+            self.credentials.append(
+                {
+                    "type": "project_manager",
+                    "name": manager_data["name"],
+                    "email": manager_data["email"],
+                    "password": manager_data["password"],
+                }
+            )
 
-        login_response = self._make_request("POST", "/auth/login", json={
-            "email": manager_data["email"],
-            "password": manager_data["password"]
-        })
+        login_response = self._make_request(
+            "POST",
+            "/auth/login",
+            json={"email": manager_data["email"], "password": manager_data["password"]},
+        )
 
         if login_response and login_response.status_code == 200:
             self.manager_token = login_response.json()["access_token"]
             print(f"{Colors.GREEN}✓{Colors.RESET} Manager authenticated")
-            self.stats.assert_true(self.manager_token is not None, "Manager token should be set")
+            self.stats.assert_true(
+                self.manager_token is not None, "Manager token should be set"
+            )
         else:
-            print(f"{Colors.RED}✗{Colors.RESET} Manager authentication failed - cannot proceed")
-            raise Exception("Failed to authenticate manager user. Please check credentials and API availability.")
+            print(
+                f"{Colors.RED}✗{Colors.RESET} Manager authentication failed - cannot proceed"
+            )
+            raise Exception(
+                "Failed to authenticate manager user. Please check credentials and API availability."
+            )
 
         # Staff Member user
         staff_data = {
@@ -415,28 +767,47 @@ class DataSeeder:
             "email": "staff@repensar.org",
             "password": "StaffPass123!",
             "phone": "+1234567892",
-            "user_type": "staff_member"
+            "user_type": "staff_member",
         }
 
         response = self._make_request("POST", "/auth/register", json=staff_data)
         if response and response.status_code in [200, 201]:
             print(f"{Colors.GREEN}✓{Colors.RESET} Staff user registered")
             self.stats.record_created("Staff User")
-            self.credentials.append({"type": "staff_member", "name": staff_data["name"], "email": staff_data["email"], "password": staff_data["password"]})
+            self.credentials.append(
+                {
+                    "type": "staff_member",
+                    "name": staff_data["name"],
+                    "email": staff_data["email"],
+                    "password": staff_data["password"],
+                }
+            )
         elif response and response.status_code == 400:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Staff user already exists, attempting login")
-            self.credentials.append({"type": "staff_member", "name": staff_data["name"], "email": staff_data["email"], "password": staff_data["password"]})
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Staff user already exists, attempting login"
+            )
+            self.credentials.append(
+                {
+                    "type": "staff_member",
+                    "name": staff_data["name"],
+                    "email": staff_data["email"],
+                    "password": staff_data["password"],
+                }
+            )
 
-        login_response = self._make_request("POST", "/auth/login", json={
-            "email": staff_data["email"],
-            "password": staff_data["password"]
-        })
+        login_response = self._make_request(
+            "POST",
+            "/auth/login",
+            json={"email": staff_data["email"], "password": staff_data["password"]},
+        )
 
         if login_response and login_response.status_code == 200:
             self.staff_token = login_response.json()["access_token"]
             print(f"{Colors.GREEN}✓{Colors.RESET} Staff authenticated")
         else:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Staff authentication failed (non-critical, continuing)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Staff authentication failed (non-critical, continuing)"
+            )
 
     def seed_users(self, count: int = 100):
         """Seed regular users."""
@@ -450,19 +821,30 @@ class DataSeeder:
                 "email": fake.unique.email(),
                 "password": "Password123!",
                 "phone": fake.phone_number()[:15],
-                "user_type": random.choice(user_types)
+                "user_type": random.choice(user_types),
             }
 
-            response = self._make_request("POST", "/auth/register", entity_type="User", json=user_data)
+            response = self._make_request(
+                "POST", "/auth/register", entity_type="User", json=user_data
+            )
 
             if response and response.status_code in [200, 201]:
                 user = response.json()
                 self.users.append(user)
                 self.stats.record_created("User")
-                self.credentials.append({"type": user_data["user_type"], "name": user_data["name"], "email": user_data["email"], "password": user_data["password"]})
+                self.credentials.append(
+                    {
+                        "type": user_data["user_type"],
+                        "name": user_data["name"],
+                        "email": user_data["email"],
+                        "password": user_data["password"],
+                    }
+                )
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("User", f"Failed to create user: {user_data['email']}", status)
+                self.stats.record_failed(
+                    "User", f"Failed to create user: {user_data['email']}", status
+                )
 
             self._log_progress("Users", i + 1, count)
 
@@ -470,7 +852,10 @@ class DataSeeder:
             if i < count - 1 and self.delay > 0:
                 time.sleep(self.delay)
 
-        self.stats.assert_true(len(self.users) >= count * 0.9, f"At least 90% of users should be created (expected {count * 0.9}, got {len(self.users)})")
+        self.stats.assert_true(
+            len(self.users) >= count * 0.9,
+            f"At least 90% of users should be created (expected {count * 0.9}, got {len(self.users)})",
+        )
 
         # Fetch all users to get their IDs (register endpoint doesn't return user object)
         print(f"{Colors.CYAN}Fetching created users...{Colors.RESET}")
@@ -478,23 +863,40 @@ class DataSeeder:
             "GET",
             "/users/?page_size=100",
             entity_type="UserFetch",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
         if response and response.status_code == 200:
             response_data = response.json()
             fetched_users = response_data.get("items", [])
             # Filter out admin/manager/staff test users
-            self.users = [u for u in fetched_users if u.get("email") not in [
-                "admin@repensar.org", "manager@repensar.org", "staff@repensar.org"
-            ]]
-            print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.users)} user records with IDs")
+            self.users = [
+                u
+                for u in fetched_users
+                if u.get("email")
+                not in [
+                    "admin@repensar.org",
+                    "manager@repensar.org",
+                    "staff@repensar.org",
+                ]
+            ]
+            print(
+                f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.users)} user records with IDs"
+            )
         else:
-            print(f"{Colors.RED}✗{Colors.RESET} Failed to fetch users (status: {response.status_code if response else 'None'})")
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Project teams, milestones, and metrics will not be created")
+            print(
+                f"{Colors.RED}✗{Colors.RESET} Failed to fetch users (status: {response.status_code if response else 'None'})"
+            )
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Project teams, milestones, and metrics will not be created"
+            )
 
     def seed_volunteers(self, count: int = 80):
         """Seed volunteers (linked to users)."""
-        print(f"\n{Colors.BOLD}Step 3: Seeding Volunteers ({count} volunteers){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 3: Seeding Volunteers ({count} volunteers){Colors.RESET}"
+        )
 
         genders = ["male", "female", "non_binary", "prefer_not_to_say"]
 
@@ -505,12 +907,14 @@ class DataSeeder:
                 "email": fake.unique.email(),
                 "password": "VolunteerPass123!",
                 "phone": fake.phone_number()[:15],
-                "date_of_birth": fake.date_of_birth(minimum_age=18, maximum_age=70).isoformat(),
+                "date_of_birth": fake.date_of_birth(
+                    minimum_age=18, maximum_age=70
+                ).isoformat(),
                 "gender": random.choice(genders),
                 "address": fake.street_address(),
                 "city": fake.city(),
                 "emergency_contact_name": fake.name(),
-                "emergency_contact_phone": fake.phone_number()[:15]
+                "emergency_contact_phone": fake.phone_number()[:15],
             }
 
             response = self._make_request(
@@ -518,17 +922,28 @@ class DataSeeder:
                 "/volunteers/register",
                 entity_type="Volunteer",
                 json=volunteer_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
                 volunteer = response.json()
                 self.volunteers.append(volunteer)
                 self.stats.record_created("Volunteer")
-                self.credentials.append({"type": "volunteer", "name": volunteer_data["name"], "email": volunteer_data["email"], "password": volunteer_data["password"]})
+                self.credentials.append(
+                    {
+                        "type": "volunteer",
+                        "name": volunteer_data["name"],
+                        "email": volunteer_data["email"],
+                        "password": volunteer_data["password"],
+                    }
+                )
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("Volunteer", f"Failed to create volunteer", status)
+                self.stats.record_failed(
+                    "Volunteer", f"Failed to create volunteer", status
+                )
 
             self._log_progress("Volunteers", i + 1, count)
 
@@ -536,7 +951,10 @@ class DataSeeder:
             if i < count - 1 and self.delay > 0:
                 time.sleep(self.delay)
 
-        self.stats.assert_true(len(self.volunteers) >= count * 0.9, f"At least 90% of volunteers should be created")
+        self.stats.assert_true(
+            len(self.volunteers) >= count * 0.9,
+            f"At least 90% of volunteers should be created",
+        )
 
         # Fetch all volunteers to get their full details with IDs
         print(f"{Colors.CYAN}Fetching created volunteers...{Colors.RESET}")
@@ -544,20 +962,34 @@ class DataSeeder:
             "GET",
             "/volunteers/?limit=100",
             entity_type="VolunteerFetch",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
         if response and response.status_code == 200:
             fetched_volunteers = response.json()
             # Update volunteers list with full details including database IDs
             if isinstance(fetched_volunteers, list) and len(fetched_volunteers) > 0:
                 # Filter to only recently created volunteers (avoid old data)
-                self.volunteers = fetched_volunteers[-count:] if len(fetched_volunteers) > count else fetched_volunteers
-                print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.volunteers)} volunteer records with IDs")
+                self.volunteers = (
+                    fetched_volunteers[-count:]
+                    if len(fetched_volunteers) > count
+                    else fetched_volunteers
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.volunteers)} volunteer records with IDs"
+                )
             else:
-                print(f"{Colors.YELLOW}⚠{Colors.RESET} No volunteers found or unexpected response format")
+                print(
+                    f"{Colors.YELLOW}⚠{Colors.RESET} No volunteers found or unexpected response format"
+                )
         else:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Failed to fetch volunteers (status: {response.status_code if response else 'None'})")
-            print(f"{Colors.YELLOW}  Skill assignments and time logs may fail{Colors.RESET}")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Failed to fetch volunteers (status: {response.status_code if response else 'None'})"
+            )
+            print(
+                f"{Colors.YELLOW}  Skill assignments and time logs may fail{Colors.RESET}"
+            )
 
         # Validate volunteer-user relationship
         if self.volunteers:
@@ -567,11 +999,16 @@ class DataSeeder:
                 response = self._make_request(
                     "GET",
                     f"/volunteers/{volunteer_id}",
-                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                    headers=self._get_auth_headers(self.admin_token)
+                    if self.admin_token
+                    else {},
                 )
                 if response and response.status_code == 200:
                     data = response.json()
-                    self.stats.assert_true("user" in data or "user_id" in data, "Volunteer should have user relationship")
+                    self.stats.assert_true(
+                        "user" in data or "user_id" in data,
+                        "Volunteer should have user relationship",
+                    )
 
     def seed_volunteer_skills(self, count: int = 25):
         """Fetch existing volunteer skills (API doesn't support skill creation via HTTP)."""
@@ -581,25 +1018,37 @@ class DataSeeder:
         response = self._make_request(
             "GET",
             "/volunteers/skills/available?limit=100",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
 
         if response and response.status_code == 200:
             self.skills = response.json()
-            print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.skills)} existing skills")
+            print(
+                f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.skills)} existing skills"
+            )
 
             if len(self.skills) == 0:
-                print(f"{Colors.YELLOW}⚠{Colors.RESET} No skills found in database. Skills need to be seeded via database migration or admin panel.")
-                print(f"{Colors.YELLOW}  Skill assignments will be skipped.{Colors.RESET}")
+                print(
+                    f"{Colors.YELLOW}⚠{Colors.RESET} No skills found in database. Skills need to be seeded via database migration or admin panel."
+                )
+                print(
+                    f"{Colors.YELLOW}  Skill assignments will be skipped.{Colors.RESET}"
+                )
         else:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Failed to fetch skills. Skill assignments will be skipped.")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Failed to fetch skills. Skill assignments will be skipped."
+            )
 
     def seed_volunteer_skill_assignments(self):
         """Assign skills to volunteers."""
         print(f"\n{Colors.BOLD}Step 5: Assigning Skills to Volunteers{Colors.RESET}")
 
         if not self.volunteers or not self.skills:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping skill assignments (no volunteers or skills)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping skill assignments (no volunteers or skills)"
+            )
             return
 
         proficiency_levels = ["beginner", "intermediate", "advanced", "expert"]
@@ -612,7 +1061,9 @@ class DataSeeder:
 
             # Assign 2-5 random skills to each volunteer
             num_skills = random.randint(2, 5)
-            selected_skills = random.sample(self.skills, min(num_skills, len(self.skills)))
+            selected_skills = random.sample(
+                self.skills, min(num_skills, len(self.skills))
+            )
 
             for skill in selected_skills:
                 skill_id = skill.get("id")
@@ -623,22 +1074,28 @@ class DataSeeder:
                     "skill_id": skill_id,
                     "proficiency_level": random.choice(proficiency_levels),
                     "years_experience": random.randint(0, 10),
-                    "certified": random.choice([True, False])
+                    "certified": random.choice([True, False]),
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/volunteers/{volunteer_id}/skills",
                     json=assignment_data,
-                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                    headers=self._get_auth_headers(self.admin_token)
+                    if self.admin_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     assignments_count += 1
                     self.stats.record_created("VolunteerSkillAssignment")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} skill assignments")
-        self.stats.assert_true(assignments_count > 0, "At least one skill assignment should be created")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} skill assignments"
+        )
+        self.stats.assert_true(
+            assignments_count > 0, "At least one skill assignment should be created"
+        )
 
         # Validate skill assignments for a sample volunteer
         if self.volunteers:
@@ -647,20 +1104,32 @@ class DataSeeder:
             response = self._make_request(
                 "GET",
                 f"/volunteers/{volunteer_id}/skills",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 skills = response.json()
-                self.stats.assert_true(isinstance(skills, list), "Volunteer skills should return a list")
+                self.stats.assert_true(
+                    isinstance(skills, list), "Volunteer skills should return a list"
+                )
 
     def seed_projects(self, count: int = 30):
         """Seed projects."""
-        print(f"\n{Colors.BOLD}Step 6: Seeding Projects ({count} projects){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 6: Seeding Projects ({count} projects){Colors.RESET}"
+        )
 
         categories = [
-            "reforestation", "environmental_education", "waste_management",
-            "conservation", "research", "community_engagement", "climate_action",
-            "biodiversity", "other"
+            "reforestation",
+            "environmental_education",
+            "waste_management",
+            "conservation",
+            "research",
+            "community_engagement",
+            "climate_action",
+            "biodiversity",
+            "other",
         ]
         statuses = ["planning", "in_progress", "suspended", "completed", "cancelled"]
         priorities = ["low", "medium", "high", "critical"]
@@ -675,13 +1144,17 @@ class DataSeeder:
                 "category": random.choice(categories),
                 "status": random.choice(statuses),
                 "priority": random.choice(priorities),
-                "start_date": (date.today() - timedelta(days=random.randint(0, 365))).isoformat(),
-                "end_date": (date.today() + timedelta(days=random.randint(30, 365))).isoformat(),
+                "start_date": (
+                    date.today() - timedelta(days=random.randint(0, 365))
+                ).isoformat(),
+                "end_date": (
+                    date.today() + timedelta(days=random.randint(30, 365))
+                ).isoformat(),
                 "budget": round(random.uniform(5000, 100000), 2),
                 "location_name": fake.city(),
                 "latitude": float(fake.latitude()),
                 "longitude": float(fake.longitude()),
-                "requires_volunteers": requires_volunteers
+                "requires_volunteers": requires_volunteers,
             }
 
             # Only add min/max volunteers if the project requires volunteers
@@ -694,7 +1167,9 @@ class DataSeeder:
                 "/projects/",
                 entity_type="Project",
                 json=project_data,
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
@@ -711,14 +1186,19 @@ class DataSeeder:
             if i < count - 1 and self.delay > 0:
                 time.sleep(self.delay)
 
-        self.stats.assert_true(len(self.projects) >= count * 0.9, f"At least 90% of projects should be created")
+        self.stats.assert_true(
+            len(self.projects) >= count * 0.9,
+            f"At least 90% of projects should be created",
+        )
 
     def seed_project_teams(self):
         """Assign users to project teams."""
         print(f"\n{Colors.BOLD}Step 7: Creating Project Teams{Colors.RESET}")
 
         if not self.projects or not self.users:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping project teams (no projects or users)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping project teams (no projects or users)"
+            )
             return
 
         roles = ["Project Manager", "Team Lead", "Coordinator", "Member", "Specialist"]
@@ -731,7 +1211,9 @@ class DataSeeder:
 
             # Assign 3-8 team members to each project
             num_members = random.randint(3, 8)
-            selected_users = random.sample(self.users, min(num_members, len(self.users)))
+            selected_users = random.sample(
+                self.users, min(num_members, len(self.users))
+            )
 
             for user in selected_users:
                 user_id = user.get("id")
@@ -742,22 +1224,29 @@ class DataSeeder:
                     "user_id": user_id,
                     "role": random.choice(roles),
                     "is_volunteer": False,
-                    "is_active": True
+                    "is_active": True,
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/projects/{project_id}/team",
                     json=team_data,
-                    headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                    headers=self._get_auth_headers(self.manager_token)
+                    if self.manager_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     assignments_count += 1
                     self.stats.record_created("ProjectTeam")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} project team assignments")
-        self.stats.assert_true(assignments_count > 0, "At least one project team assignment should be created")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} project team assignments"
+        )
+        self.stats.assert_true(
+            assignments_count > 0,
+            "At least one project team assignment should be created",
+        )
 
     def seed_milestones(self):
         """Create project milestones."""
@@ -768,9 +1257,15 @@ class DataSeeder:
             return
 
         milestone_templates = [
-            "Lançamento do Projeto", "Planejamento Concluído", "50% de Execução",
-            "Avaliação de Impacto", "Revisão Final", "Projeto Concluído",
-            "Primeira Colheita", "Meta de Plantio Atingida", "Certificação Ambiental"
+            "Lançamento do Projeto",
+            "Planejamento Concluído",
+            "50% de Execução",
+            "Avaliação de Impacto",
+            "Revisão Final",
+            "Projeto Concluído",
+            "Primeira Colheita",
+            "Meta de Plantio Atingida",
+            "Certificação Ambiental",
         ]
         statuses = ["pending", "achieved", "missed", "cancelled"]
         milestones_count = 0
@@ -788,15 +1283,19 @@ class DataSeeder:
                     "project_id": project_id,  # Required by schema
                     "name": random.choice(milestone_templates),
                     "description": f"Marco importante para {random.choice(ACOES_AMBIENTAIS).lower()} e {random.choice(['monitoramento', 'avaliação', 'expansão'])} do projeto.",
-                    "target_date": (date.today() + timedelta(days=random.randint(30, 365))).isoformat(),
-                    "status": random.choice(statuses)
+                    "target_date": (
+                        date.today() + timedelta(days=random.randint(30, 365))
+                    ).isoformat(),
+                    "status": random.choice(statuses),
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/projects/{project_id}/milestones",
                     json=milestone_data,
-                    headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                    headers=self._get_auth_headers(self.manager_token)
+                    if self.manager_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
@@ -804,14 +1303,18 @@ class DataSeeder:
                     self.stats.record_created("Milestone")
 
         print(f"{Colors.GREEN}✓{Colors.RESET} Created {milestones_count} milestones")
-        self.stats.assert_true(milestones_count > 0, "At least one milestone should be created")
+        self.stats.assert_true(
+            milestones_count > 0, "At least one milestone should be created"
+        )
 
     def seed_environmental_metrics(self):
         """Create environmental metrics for projects."""
         print(f"\n{Colors.BOLD}Step 9: Creating Environmental Metrics{Colors.RESET}")
 
         if not self.projects:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping environmental metrics (no projects)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping environmental metrics (no projects)"
+            )
             return
 
         metric_types = [
@@ -823,7 +1326,11 @@ class DataSeeder:
             {"name": "Espécies Protegidas", "type": "count", "unit": "espécies"},
             {"name": "Mudas Distribuídas", "type": "count", "unit": "mudas"},
             {"name": "Voluntários Engajados", "type": "count", "unit": "pessoas"},
-            {"name": "Biodiversidade Recuperada", "type": "measurement", "unit": "índice"}
+            {
+                "name": "Biodiversidade Recuperada",
+                "type": "measurement",
+                "unit": "índice",
+            },
         ]
 
         metrics_count = 0
@@ -835,7 +1342,9 @@ class DataSeeder:
 
             # Create 2-4 metrics per project
             num_metrics = random.randint(2, 4)
-            selected_metrics = random.sample(metric_types, min(num_metrics, len(metric_types)))
+            selected_metrics = random.sample(
+                metric_types, min(num_metrics, len(metric_types))
+            )
 
             for metric_template in selected_metrics:
                 metric_data = {
@@ -845,22 +1354,28 @@ class DataSeeder:
                     "unit": metric_template["unit"],
                     "current_value": round(random.uniform(0, 1000), 2),
                     "target_value": round(random.uniform(1000, 5000), 2),
-                    "measurement_date": date.today().isoformat()
+                    "measurement_date": date.today().isoformat(),
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/projects/{project_id}/metrics",
                     json=metric_data,
-                    headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                    headers=self._get_auth_headers(self.manager_token)
+                    if self.manager_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     metrics_count += 1
                     self.stats.record_created("EnvironmentalMetric")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {metrics_count} environmental metrics")
-        self.stats.assert_true(metrics_count > 0, "At least one environmental metric should be created")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {metrics_count} environmental metrics"
+        )
+        self.stats.assert_true(
+            metrics_count > 0, "At least one environmental metric should be created"
+        )
 
     def seed_tasks(self, count: int = 150):
         """Seed tasks."""
@@ -888,10 +1403,16 @@ class DataSeeder:
                 "status": random.choice(statuses),
                 "priority": random.choice(priorities),
                 "suitable_for_volunteers": suitable_for_volunteers,
-                "volunteer_spots": random.randint(1, 10) if suitable_for_volunteers else 0,
+                "volunteer_spots": random.randint(1, 10)
+                if suitable_for_volunteers
+                else 0,
                 "estimated_hours": round(random.uniform(1, 40), 1),
-                "start_date": (date.today() + timedelta(days=random.randint(0, 30))).isoformat(),
-                "due_date": (date.today() + timedelta(days=random.randint(30, 90))).isoformat()
+                "start_date": (
+                    date.today() + timedelta(days=random.randint(0, 30))
+                ).isoformat(),
+                "due_date": (
+                    date.today() + timedelta(days=random.randint(30, 90))
+                ).isoformat(),
             }
 
             response = self._make_request(
@@ -899,7 +1420,9 @@ class DataSeeder:
                 "/tasks/",
                 entity_type="Task",
                 json=task_data,
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
@@ -916,7 +1439,9 @@ class DataSeeder:
             if i < count - 1 and self.delay > 0:
                 time.sleep(self.delay)
 
-        self.stats.assert_true(len(self.tasks) >= count * 0.9, f"At least 90% of tasks should be created")
+        self.stats.assert_true(
+            len(self.tasks) >= count * 0.9, f"At least 90% of tasks should be created"
+        )
 
         # Validate task-project relationship
         if self.tasks:
@@ -925,28 +1450,38 @@ class DataSeeder:
             response = self._make_request(
                 "GET",
                 f"/tasks/{task_id}",
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true("project_id" in data, "Task should have project_id")
+                self.stats.assert_true(
+                    "project_id" in data, "Task should have project_id"
+                )
 
     def seed_task_volunteers(self):
         """Assign volunteers to tasks."""
         print(f"\n{Colors.BOLD}Step 11: Assigning Volunteers to Tasks{Colors.RESET}")
 
         if not self.tasks or not self.volunteers:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping task volunteers (no tasks or volunteers)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping task volunteers (no tasks or volunteers)"
+            )
             return
 
         assignments_count = 0
 
         # Filter tasks suitable for volunteers
         volunteer_tasks = [t for t in self.tasks if t.get("suitable_for_volunteers")]
-        print(f"{Colors.CYAN}Found {len(volunteer_tasks)} tasks suitable for volunteers{Colors.RESET}")
+        print(
+            f"{Colors.CYAN}Found {len(volunteer_tasks)} tasks suitable for volunteers{Colors.RESET}"
+        )
 
         if not volunteer_tasks:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} No tasks marked as suitable for volunteers")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} No tasks marked as suitable for volunteers"
+            )
             return
 
         for task in volunteer_tasks:
@@ -964,35 +1499,47 @@ class DataSeeder:
                     continue
 
                 # API only accepts volunteer_id for TaskVolunteerCreate
-                assignment_data = {
-                    "volunteer_id": volunteer_id
-                }
+                assignment_data = {"volunteer_id": volunteer_id}
 
                 response = self._make_request(
                     "POST",
                     f"/tasks/{task_id}/volunteers",
                     entity_type="TaskVolunteer",
                     json=assignment_data,
-                    headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                    headers=self._get_auth_headers(self.manager_token)
+                    if self.manager_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     assignments_count += 1
                     self.stats.record_created("TaskVolunteer")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} task-volunteer assignments")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {assignments_count} task-volunteer assignments"
+        )
         if volunteer_tasks:
-            self.stats.assert_true(assignments_count > 0, "At least one task-volunteer assignment should be created")
+            self.stats.assert_true(
+                assignments_count > 0,
+                "At least one task-volunteer assignment should be created",
+            )
 
     def seed_task_dependencies(self):
         """Create task dependencies."""
         print(f"\n{Colors.BOLD}Step 12: Creating Task Dependencies{Colors.RESET}")
 
         if len(self.tasks) < 10:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping task dependencies (not enough tasks)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping task dependencies (not enough tasks)"
+            )
             return
 
-        dependency_types = ["finish_to_start", "start_to_start", "finish_to_finish", "start_to_finish"]
+        dependency_types = [
+            "finish_to_start",
+            "start_to_start",
+            "finish_to_finish",
+            "start_to_finish",
+        ]
         dependencies_count = 0
 
         # Create dependencies for about 20% of tasks
@@ -1009,33 +1556,62 @@ class DataSeeder:
 
             dependency_data = {
                 "successor_task_id": task2_id,
-                "dependency_type": random.choice(dependency_types)
+                "dependency_type": random.choice(dependency_types),
             }
 
             response = self._make_request(
                 "POST",
                 f"/tasks/{task1_id}/dependencies",
                 json=dependency_data,
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
                 dependencies_count += 1
                 self.stats.record_created("TaskDependency")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {dependencies_count} task dependencies")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {dependencies_count} task dependencies"
+        )
 
     def seed_resources(self, count: int = 50):
         """Seed resources."""
-        print(f"\n{Colors.BOLD}Step 13: Seeding Resources ({count} resources){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 13: Seeding Resources ({count} resources){Colors.RESET}"
+        )
 
         resource_types = ["human", "equipment", "material", "financial"]
 
         resource_templates = {
-            "human": ["Coordenador Ambiental", "Supervisor de Campo", "Especialista em Biodiversidade", "Educador Ambiental"],
-            "equipment": ["GPS para Mapeamento", "Câmera Trap", "Kit Análise de Água", "Ferramentas de Plantio", "Veículo 4x4"],
-            "material": ["Sementes Nativas", "Mudas Florestais", "Adubo Orgânico", "Composto", "Cobertura Morta", "Substrato"],
-            "financial": ["Financiamento Verde", "Doação Ambiental", "Patrocínio Sustentável", "Fundo Conservação"]
+            "human": [
+                "Coordenador Ambiental",
+                "Supervisor de Campo",
+                "Especialista em Biodiversidade",
+                "Educador Ambiental",
+            ],
+            "equipment": [
+                "GPS para Mapeamento",
+                "Câmera Trap",
+                "Kit Análise de Água",
+                "Ferramentas de Plantio",
+                "Veículo 4x4",
+            ],
+            "material": [
+                "Sementes Nativas",
+                "Mudas Florestais",
+                "Adubo Orgânico",
+                "Composto",
+                "Cobertura Morta",
+                "Substrato",
+            ],
+            "financial": [
+                "Financiamento Verde",
+                "Doação Ambiental",
+                "Patrocínio Sustentável",
+                "Fundo Conservação",
+            ],
         }
 
         for i in range(count):
@@ -1046,10 +1622,12 @@ class DataSeeder:
                 "type": resource_type,
                 "description": f"Recurso essencial para {random.choice(ACOES_AMBIENTAIS).lower()} e {random.choice(['conservação', 'monitoramento', 'educação'])} ambiental.",
                 "unit": random.choice(["unidade", "kg", "litros", "horas", "BRL"]),
-                "unit_cost": round(random.uniform(10, 1000), 2) if resource_type != "human" else None,
+                "unit_cost": round(random.uniform(10, 1000), 2)
+                if resource_type != "human"
+                else None,
                 "available_quantity": round(random.uniform(10, 500), 2),
                 "location": fake.city(),
-                "is_active": True
+                "is_active": True,
             }
 
             response = self._make_request(
@@ -1057,7 +1635,9 @@ class DataSeeder:
                 "/resources/",
                 entity_type="Resource",
                 json=resource_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
@@ -1066,7 +1646,9 @@ class DataSeeder:
                 self.stats.record_created("Resource")
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("Resource", f"Failed to create resource", status)
+                self.stats.record_failed(
+                    "Resource", f"Failed to create resource", status
+                )
 
             self._log_progress("Resources", i + 1, count)
 
@@ -1074,14 +1656,19 @@ class DataSeeder:
             if i < count - 1 and self.delay > 0:
                 time.sleep(self.delay)
 
-        self.stats.assert_true(len(self.resources) >= count * 0.9, f"At least 90% of resources should be created")
+        self.stats.assert_true(
+            len(self.resources) >= count * 0.9,
+            f"At least 90% of resources should be created",
+        )
 
     def seed_project_resources(self):
         """Allocate resources to projects."""
         print(f"\n{Colors.BOLD}Step 14: Allocating Resources to Projects{Colors.RESET}")
 
         if not self.projects or not self.resources:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping project resources (no projects or resources)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping project resources (no projects or resources)"
+            )
             return
 
         allocations_count = 0
@@ -1093,7 +1680,9 @@ class DataSeeder:
 
             # Allocate 3-8 resources to each project
             num_resources = random.randint(3, 8)
-            selected_resources = random.sample(self.resources, min(num_resources, len(self.resources)))
+            selected_resources = random.sample(
+                self.resources, min(num_resources, len(self.resources))
+            )
 
             for resource in selected_resources:
                 resource_id = resource.get("id")
@@ -1104,26 +1693,34 @@ class DataSeeder:
                     "resource_id": resource_id,
                     "quantity_allocated": round(random.uniform(1, 50), 2),
                     "quantity_used": round(random.uniform(0, 30), 2),
-                    "allocation_date": date.today().isoformat()
+                    "allocation_date": date.today().isoformat(),
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/resources/projects/{project_id}/resources",
                     json=allocation_data,
-                    headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                    headers=self._get_auth_headers(self.manager_token)
+                    if self.manager_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     allocations_count += 1
                     self.stats.record_created("ProjectResource")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Created {allocations_count} resource allocations")
-        self.stats.assert_true(allocations_count > 0, "At least one resource allocation should be created")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Created {allocations_count} resource allocations"
+        )
+        self.stats.assert_true(
+            allocations_count > 0, "At least one resource allocation should be created"
+        )
 
     def seed_volunteer_time_logs(self, count: int = 500):
         """Seed volunteer time logs."""
-        print(f"\n{Colors.BOLD}Step 15: Seeding Volunteer Time Logs ({count} logs){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 15: Seeding Volunteer Time Logs ({count} logs){Colors.RESET}"
+        )
 
         if not self.volunteers:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping time logs (no volunteers)")
@@ -1147,9 +1744,11 @@ class DataSeeder:
 
             log_data = {
                 "volunteer_id": volunteer_id,
-                "date": (date.today() - timedelta(days=random.randint(0, 365))).isoformat(),
+                "date": (
+                    date.today() - timedelta(days=random.randint(0, 365))
+                ).isoformat(),
                 "hours": round(random.uniform(1, 8), 2),
-                "activity_description": generate_volunteer_activity()
+                "activity_description": generate_volunteer_activity(),
             }
 
             if task_id:
@@ -1161,14 +1760,18 @@ class DataSeeder:
                 "POST",
                 f"/volunteers/{volunteer_id}/hours",
                 json=log_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
                 self.stats.record_created("VolunteerTimeLog")
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("VolunteerTimeLog", f"Failed to create time log", status)
+                self.stats.record_failed(
+                    "VolunteerTimeLog", f"Failed to create time log", status
+                )
 
             self._log_progress("Time Logs", i + 1, count)
 
@@ -1183,15 +1786,22 @@ class DataSeeder:
             response = self._make_request(
                 "GET",
                 f"/volunteers/{volunteer_id}/hours",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 logs = response.json()
-                self.stats.assert_true(isinstance(logs, (list, dict)), "Time logs should return a list or paginated object")
+                self.stats.assert_true(
+                    isinstance(logs, (list, dict)),
+                    "Time logs should return a list or paginated object",
+                )
 
     def seed_notifications(self, count: int = 100):
         """Seed notifications."""
-        print(f"\n{Colors.BOLD}Step 16: Seeding Notifications ({count} notifications){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 16: Seeding Notifications ({count} notifications){Colors.RESET}"
+        )
 
         if not self.users:
             print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping notifications (no users)")
@@ -1200,13 +1810,41 @@ class DataSeeder:
         notification_types = ["info", "success", "warning", "error"]
 
         notification_templates = [
-            {"title": "Bem-vindo!", "message": "Bem-vindo à plataforma Repensar! Juntos por um futuro sustentável.", "type": "info"},
-            {"title": "Nova Tarefa Ambiental", "message": "Você foi designado para uma nova atividade de conservação.", "type": "info"},
-            {"title": "Horas Aprovadas", "message": "Suas horas voluntárias foram aprovadas. Obrigado pelo seu impacto positivo!", "type": "success"},
-            {"title": "Atualização de Projeto", "message": "Um projeto ambiental que você participa foi atualizado.", "type": "info"},
-            {"title": "Lembrete", "message": "Não esqueça de registrar suas horas de voluntariado.", "type": "warning"},
-            {"title": "Meta Alcançada!", "message": "Parabéns! Seu projeto atingiu uma meta ambiental importante.", "type": "success"},
-            {"title": "Novo Plantio", "message": "Uma nova atividade de plantio está disponível na sua região.", "type": "info"}
+            {
+                "title": "Bem-vindo!",
+                "message": "Bem-vindo à plataforma Repensar! Juntos por um futuro sustentável.",
+                "type": "info",
+            },
+            {
+                "title": "Nova Tarefa Ambiental",
+                "message": "Você foi designado para uma nova atividade de conservação.",
+                "type": "info",
+            },
+            {
+                "title": "Horas Aprovadas",
+                "message": "Suas horas voluntárias foram aprovadas. Obrigado pelo seu impacto positivo!",
+                "type": "success",
+            },
+            {
+                "title": "Atualização de Projeto",
+                "message": "Um projeto ambiental que você participa foi atualizado.",
+                "type": "info",
+            },
+            {
+                "title": "Lembrete",
+                "message": "Não esqueça de registrar suas horas de voluntariado.",
+                "type": "warning",
+            },
+            {
+                "title": "Meta Alcançada!",
+                "message": "Parabéns! Seu projeto atingiu uma meta ambiental importante.",
+                "type": "success",
+            },
+            {
+                "title": "Novo Plantio",
+                "message": "Uma nova atividade de plantio está disponível na sua região.",
+                "type": "info",
+            },
         ]
 
         for i in range(count):
@@ -1220,22 +1858,30 @@ class DataSeeder:
                 "title": template["title"],
                 "message": template["message"],
                 "type": template["type"],
-                "project_id": random.choice(self.projects).get("id") if self.projects and random.choice([True, False]) else None,
-                "task_id": random.choice(self.tasks).get("id") if self.tasks and random.choice([True, False]) else None
+                "project_id": random.choice(self.projects).get("id")
+                if self.projects and random.choice([True, False])
+                else None,
+                "task_id": random.choice(self.tasks).get("id")
+                if self.tasks and random.choice([True, False])
+                else None,
             }
 
             response = self._make_request(
                 "POST",
                 "/notifications/create",
                 json=notification_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
                 self.stats.record_created("Notification")
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("Notification", f"Failed to create notification", status)
+                self.stats.record_failed(
+                    "Notification", f"Failed to create notification", status
+                )
 
             self._log_progress("Notifications", i + 1, count)
 
@@ -1249,68 +1895,103 @@ class DataSeeder:
 
         # Validate volunteer-user relationship
         if self.volunteers:
-            print(f"{Colors.CYAN}Validating Volunteer → User relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer → User relationship...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/volunteers/{volunteer_id}",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
                 has_user = "user" in data or "user_id" in data
-                self.stats.assert_true(has_user, "Volunteer should have user relationship")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → User relationship validated")
+                self.stats.assert_true(
+                    has_user, "Volunteer should have user relationship"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer → User relationship validated"
+                )
 
         # Validate volunteer skills
         if self.volunteers and self.skills:
-            print(f"{Colors.CYAN}Validating Volunteer → Skills relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer → Skills relationship...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/volunteers/{volunteer_id}/skills",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, list), "Volunteer skills should return a list")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Skills relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, list), "Volunteer skills should return a list"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Skills relationship validated"
+                )
 
         # Validate project-task relationship
         if self.projects and self.tasks:
-            print(f"{Colors.CYAN}Validating Project → Tasks relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Project → Tasks relationship...{Colors.RESET}"
+            )
             project = self.projects[0]
             project_id = project.get("id")
             response = self._make_request(
                 "GET",
                 f"/projects/{project_id}/tasks",
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, (list, dict)), "Project tasks should return a list or paginated object")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Project → Tasks relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, (list, dict)),
+                    "Project tasks should return a list or paginated object",
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Project → Tasks relationship validated"
+                )
 
         # Validate project team
         if self.projects:
-            print(f"{Colors.CYAN}Validating Project → Team relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Project → Team relationship...{Colors.RESET}"
+            )
             project = self.projects[0]
             project_id = project.get("id")
             response = self._make_request(
                 "GET",
                 f"/projects/{project_id}/team",
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, list), "Project team should return a list")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Project → Team relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, list), "Project team should return a list"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Project → Team relationship validated"
+                )
 
         # Validate task-volunteers relationship
         if self.tasks:
-            print(f"{Colors.CYAN}Validating Task → Volunteers relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Task → Volunteers relationship...{Colors.RESET}"
+            )
             # Find a task that should have volunteers
             for task in self.tasks:
                 if task.get("suitable_for_volunteers"):
@@ -1318,58 +1999,243 @@ class DataSeeder:
                     response = self._make_request(
                         "GET",
                         f"/tasks/{task_id}/volunteers",
-                        headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                        headers=self._get_auth_headers(self.manager_token)
+                        if self.manager_token
+                        else {},
                     )
                     if response and response.status_code == 200:
                         data = response.json()
-                        self.stats.assert_true(isinstance(data, list), "Task volunteers should return a list")
-                        print(f"{Colors.GREEN}✓{Colors.RESET} Task → Volunteers relationship validated")
+                        self.stats.assert_true(
+                            isinstance(data, list),
+                            "Task volunteers should return a list",
+                        )
+                        print(
+                            f"{Colors.GREEN}✓{Colors.RESET} Task → Volunteers relationship validated"
+                        )
                         break
 
         # Validate volunteer time logs
         if self.volunteers:
-            print(f"{Colors.CYAN}Validating Volunteer → Time Logs relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer → Time Logs relationship...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/volunteers/{volunteer_id}/hours",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, (list, dict)), "Volunteer hours should return a list or paginated object")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Time Logs relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, (list, dict)),
+                    "Volunteer hours should return a list or paginated object",
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Time Logs relationship validated"
+                )
 
         # Validate project resources
         if self.projects:
-            print(f"{Colors.CYAN}Validating Project → Resources relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Project → Resources relationship...{Colors.RESET}"
+            )
             project = self.projects[0]
             project_id = project.get("id")
             response = self._make_request(
                 "GET",
                 f"/projects/{project_id}/resources",
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, list), "Project resources should return a list")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Project → Resources relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, list), "Project resources should return a list"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Project → Resources relationship validated"
+                )
 
         # Validate project milestones
         if self.projects:
-            print(f"{Colors.CYAN}Validating Project → Milestones relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Project → Milestones relationship...{Colors.RESET}"
+            )
             project = self.projects[0]
             project_id = project.get("id")
             response = self._make_request(
                 "GET",
                 f"/projects/{project_id}/milestones",
-                headers=self._get_auth_headers(self.manager_token) if self.manager_token else {}
+                headers=self._get_auth_headers(self.manager_token)
+                if self.manager_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true(isinstance(data, list), "Project milestones should return a list")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Project → Milestones relationship validated")
+                self.stats.assert_true(
+                    isinstance(data, list), "Project milestones should return a list"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Project → Milestones relationship validated"
+                )
+
+    # ============================================================
+    # BLOG SEEDING
+    # ============================================================
+
+    def seed_blog_posts(self, count: int = 15):
+        """Seed blog posts."""
+        print(f"\n{Colors.BOLD}Blog: Seeding Posts ({count} posts){Colors.RESET}")
+
+        statuses = ["draft", "published", "archived"]
+        post_templates = [
+            "Como Restaurar Áreas Degradadas",
+            "Guia de Compostagem Doméstica",
+            "10 Dicas para Reduzir Resíduos",
+            "Importância da Biodiversidade Local",
+            "Como Plantar Árvores Nativas",
+            "Economia Circular na Prática",
+            "Monitoramento de Qualidade da Água",
+            "Educação Ambiental nas Escolas",
+            "Voluntariado e Impacto Social",
+            "Mudanças Climáticas: O Que Podemos Fazer",
+        ]
+
+        for i in range(count):
+            post_data = {
+                "title": f"{random.choice(post_templates)} - {fake.sentence(nb_words=4)}",
+                "content": fake.paragraphs(nb=5),
+                "excerpt": fake.sentence(),
+                "status": random.choice(statuses),
+                "featured_image": f"https://picsum.photos/seed/{i}/800/400",
+                "meta_title": fake.sentence(),
+                "meta_description": fake.sentence(),
+                "tags": random.sample(
+                    [
+                        "meio-ambiente",
+                        "sustentabilidade",
+                        "voluntariado",
+                        "educação",
+                        "conservação",
+                    ],
+                    k=3,
+                ),
+            }
+
+            response = self._make_request(
+                "POST",
+                "/blog/posts",
+                entity_type="BlogPost",
+                json=post_data,
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
+            )
+
+            if response and response.status_code in [200, 201]:
+                self.stats.record_created("BlogPost")
+            else:
+                status = response.status_code if response else None
+                self.stats.record_failed("BlogPost", f"Failed to create post", status)
+
+            self._log_progress("Blog Posts", i + 1, count)
+
+            if i < count - 1 and self.delay > 0:
+                time.sleep(self.delay)
+
+    def seed_blog_categories(self):
+        """Seed blog categories."""
+        print(f"\n{Colors.BOLD}Blog: Seeding Categories{Colors.RESET}")
+
+        categories = [
+            {
+                "name": "Meio Ambiente",
+                "slug": "meio-ambiente",
+                "description": "Artigos sobre conservação e proteção ambiental",
+            },
+            {
+                "name": "Sustentabilidade",
+                "slug": "sustentabilidade",
+                "description": "Práticas sustentáveis para o dia a dia",
+            },
+            {
+                "name": "Voluntariado",
+                "slug": "voluntariado",
+                "description": "Oportunidades e histórias de voluntariado",
+            },
+            {
+                "name": "Educação",
+                "slug": "educacao",
+                "description": "Materiais e artigos educativos",
+            },
+            {
+                "name": "Projetos",
+                "slug": "projetos",
+                "description": "Atualizações sobre projetos ambientais",
+            },
+        ]
+
+        for cat in categories:
+            response = self._make_request(
+                "POST",
+                "/blog/categories",
+                entity_type="BlogCategory",
+                json=cat,
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
+            )
+
+            if response and response.status_code in [200, 201]:
+                self.stats.record_created("BlogCategory")
+
+    # ============================================================
+    # NEWSLETTER SEEDING
+    # ============================================================
+
+    def seed_newsletter_subscribers(self, count: int = 50):
+        """Seed newsletter subscribers."""
+        print(
+            f"\n{Colors.BOLD}Newsletter: Seeding Subscribers ({count} subscribers){Colors.RESET}"
+        )
+
+        statuses = ["active", "unsubscribed", "pending"]
+
+        for i in range(count):
+            subscriber_data = {
+                "email": fake.unique.email(),
+                "name": fake.name(),
+                "status": random.choice(statuses),
+                "source": random.choice(["website", "event", "referral", "campaign"]),
+            }
+
+            response = self._make_request(
+                "POST",
+                "/newsletter/subscribers",
+                entity_type="NewsletterSubscriber",
+                json=subscriber_data,
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
+            )
+
+            if response and response.status_code in [200, 201]:
+                self.stats.record_created("NewsletterSubscriber")
+            else:
+                status = response.status_code if response else None
+                self.stats.record_failed(
+                    "NewsletterSubscriber", f"Failed to create subscriber", status
+                )
+
+            self._log_progress("Newsletter Subscribers", i + 1, count)
+
+            if i < count - 1 and self.delay > 0:
+                time.sleep(self.delay)
 
     # ============================================================
     # GAMIFICATION SEEDING
@@ -1377,7 +2243,9 @@ class DataSeeder:
 
     def seed_badges(self):
         """Seed badge definitions."""
-        print(f"\n{Colors.BOLD}Step 18: Seeding Badges ({len(BADGE_TEMPLATES)} badges){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 18: Seeding Badges ({len(BADGE_TEMPLATES)} badges){Colors.RESET}"
+        )
 
         for i, badge_data in enumerate(BADGE_TEMPLATES):
             response = self._make_request(
@@ -1385,7 +2253,9 @@ class DataSeeder:
                 "/gamification/badges",
                 entity_type="Badge",
                 json=badge_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
@@ -1397,7 +2267,9 @@ class DataSeeder:
                 pass
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("Badge", f"Failed to create badge: {badge_data['name']}", status)
+                self.stats.record_failed(
+                    "Badge", f"Failed to create badge: {badge_data['name']}", status
+                )
 
             self._log_progress("Badges", i + 1, len(BADGE_TEMPLATES))
 
@@ -1405,7 +2277,9 @@ class DataSeeder:
         response = self._make_request(
             "GET",
             "/gamification/badges?limit=100",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
         if response and response.status_code == 200:
             self.badges = response.json()
@@ -1413,21 +2287,32 @@ class DataSeeder:
 
     def seed_achievements(self):
         """Seed achievement definitions."""
-        print(f"\n{Colors.BOLD}Step 19: Seeding Achievements ({len(ACHIEVEMENT_TEMPLATES)} achievements){Colors.RESET}")
+        print(
+            f"\n{Colors.BOLD}Step 19: Seeding Achievements ({len(ACHIEVEMENT_TEMPLATES)} achievements){Colors.RESET}"
+        )
 
         for i, achievement_data in enumerate(ACHIEVEMENT_TEMPLATES):
             # Optionally link to a badge
             if self.badges and random.choice([True, False]):
-                matching_badges = [b for b in self.badges if b.get("category") == "time" or b.get("rarity") == "common"]
+                matching_badges = [
+                    b
+                    for b in self.badges
+                    if b.get("category") == "time" or b.get("rarity") == "common"
+                ]
                 if matching_badges:
-                    achievement_data = {**achievement_data, "badge_id": random.choice(matching_badges).get("id")}
+                    achievement_data = {
+                        **achievement_data,
+                        "badge_id": random.choice(matching_badges).get("id"),
+                    }
 
             response = self._make_request(
                 "POST",
                 "/gamification/achievements",
                 entity_type="Achievement",
                 json=achievement_data,
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
 
             if response and response.status_code in [200, 201]:
@@ -1439,7 +2324,11 @@ class DataSeeder:
                 pass
             else:
                 status = response.status_code if response else None
-                self.stats.record_failed("Achievement", f"Failed to create achievement: {achievement_data['name']}", status)
+                self.stats.record_failed(
+                    "Achievement",
+                    f"Failed to create achievement: {achievement_data['name']}",
+                    status,
+                )
 
             self._log_progress("Achievements", i + 1, len(ACHIEVEMENT_TEMPLATES))
 
@@ -1447,18 +2336,24 @@ class DataSeeder:
         response = self._make_request(
             "GET",
             "/gamification/achievements?limit=100",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
         if response and response.status_code == 200:
             self.achievements = response.json()
-            print(f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.achievements)} achievements")
+            print(
+                f"{Colors.GREEN}✓{Colors.RESET} Fetched {len(self.achievements)} achievements"
+            )
 
     def seed_volunteer_badges(self):
         """Award badges to volunteers."""
         print(f"\n{Colors.BOLD}Step 20: Awarding Badges to Volunteers{Colors.RESET}")
 
         if not self.volunteers or not self.badges:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping badge awards (no volunteers or badges)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping badge awards (no volunteers or badges)"
+            )
             return
 
         awards_count = 0
@@ -1472,7 +2367,9 @@ class DataSeeder:
 
             # Award 1-3 common badges to each volunteer
             num_badges = random.randint(1, min(3, len(common_badges)))
-            selected_badges = random.sample(common_badges, num_badges) if common_badges else []
+            selected_badges = (
+                random.sample(common_badges, num_badges) if common_badges else []
+            )
 
             # Some volunteers also get rare badges
             if random.random() < 0.3 and rare_badges:
@@ -1485,21 +2382,25 @@ class DataSeeder:
 
                 award_data = {
                     "badge_id": badge_id,
-                    "earned_reason": f"Reconhecimento por {random.choice(['dedicação', 'contribuição', 'participação', 'esforço'])} em atividades ambientais"
+                    "earned_reason": f"Reconhecimento por {random.choice(['dedicação', 'contribuição', 'participação', 'esforço'])} em atividades ambientais",
                 }
 
                 response = self._make_request(
                     "POST",
                     f"/gamification/volunteers/{volunteer_id}/badges/award",
                     json=award_data,
-                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                    headers=self._get_auth_headers(self.admin_token)
+                    if self.admin_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
                     awards_count += 1
                     self.stats.record_created("VolunteerBadge")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Awarded {awards_count} badges to volunteers")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Awarded {awards_count} badges to volunteers"
+        )
         self.stats.assert_true(awards_count > 0, "At least one badge should be awarded")
 
     def seed_volunteer_points(self):
@@ -1507,11 +2408,19 @@ class DataSeeder:
         print(f"\n{Colors.BOLD}Step 21: Awarding Points to Volunteers{Colors.RESET}")
 
         if not self.volunteers:
-            print(f"{Colors.YELLOW}⚠{Colors.RESET} Skipping points awards (no volunteers)")
+            print(
+                f"{Colors.YELLOW}⚠{Colors.RESET} Skipping points awards (no volunteers)"
+            )
             return
 
         points_count = 0
-        event_types = ["hours_logged", "task_completed", "project_completed", "achievement_earned", "manual_adjustment"]
+        event_types = [
+            "hours_logged",
+            "task_completed",
+            "project_completed",
+            "achievement_earned",
+            "manual_adjustment",
+        ]
 
         for volunteer in self.volunteers:
             volunteer_id = volunteer.get("id")
@@ -1526,7 +2435,9 @@ class DataSeeder:
                     "points": random.randint(5, 100),
                     "event_type": random.choice(event_types),
                     "description": random.choice(POINTS_EVENT_DESCRIPTIONS),
-                    "reference_type": random.choice(["task", "project", "training", None])
+                    "reference_type": random.choice(
+                        ["task", "project", "training", None]
+                    ),
                 }
 
                 # Add reference_id if reference_type is set
@@ -1541,7 +2452,9 @@ class DataSeeder:
                     "POST",
                     f"/gamification/volunteers/{volunteer_id}/points/award",
                     json=points_data,
-                    headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                    headers=self._get_auth_headers(self.admin_token)
+                    if self.admin_token
+                    else {},
                 )
 
                 if response and response.status_code in [200, 201]:
@@ -1553,7 +2466,9 @@ class DataSeeder:
                 time.sleep(self.delay)
 
         print(f"{Colors.GREEN}✓{Colors.RESET} Created {points_count} points awards")
-        self.stats.assert_true(points_count > 0, "At least one points award should be created")
+        self.stats.assert_true(
+            points_count > 0, "At least one points award should be created"
+        )
 
     def seed_leaderboards(self):
         """Generate leaderboards."""
@@ -1562,16 +2477,22 @@ class DataSeeder:
         response = self._make_request(
             "POST",
             "/gamification/leaderboards/generate",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
 
         if response and response.status_code == 200:
             result = response.json()
-            print(f"{Colors.GREEN}✓{Colors.RESET} {result.get('message', 'Leaderboards generated')}")
+            print(
+                f"{Colors.GREEN}✓{Colors.RESET} {result.get('message', 'Leaderboards generated')}"
+            )
             self.stats.record_created("Leaderboard")
         else:
             status = response.status_code if response else None
-            self.stats.record_failed("Leaderboard", "Failed to generate leaderboards", status)
+            self.stats.record_failed(
+                "Leaderboard", "Failed to generate leaderboards", status
+            )
 
     def validate_gamification(self):
         """Validate gamification data."""
@@ -1579,62 +2500,97 @@ class DataSeeder:
 
         # Validate volunteer points
         if self.volunteers:
-            print(f"{Colors.CYAN}Validating Volunteer → Points relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer → Points relationship...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/gamification/volunteers/{volunteer_id}/points",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true("total_points" in data, "Volunteer should have points data")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Points relationship validated")
+                self.stats.assert_true(
+                    "total_points" in data, "Volunteer should have points data"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Points relationship validated"
+                )
 
         # Validate volunteer badges
         if self.volunteers:
-            print(f"{Colors.CYAN}Validating Volunteer → Badges relationship...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer → Badges relationship...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/gamification/volunteers/{volunteer_id}/badges",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true("badges" in data or isinstance(data, list), "Volunteer should have badges data")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Badges relationship validated")
+                self.stats.assert_true(
+                    "badges" in data or isinstance(data, list),
+                    "Volunteer should have badges data",
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer → Badges relationship validated"
+                )
 
         # Validate gamification stats (admin)
         print(f"{Colors.CYAN}Validating Gamification Stats endpoint...{Colors.RESET}")
         response = self._make_request(
             "GET",
             "/gamification/stats",
-            headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+            headers=self._get_auth_headers(self.admin_token)
+            if self.admin_token
+            else {},
         )
         if response and response.status_code == 200:
             data = response.json()
-            self.stats.assert_true("total_badges" in data, "Stats should include total_badges")
-            self.stats.assert_true("total_achievements" in data, "Stats should include total_achievements")
-            print(f"{Colors.GREEN}✓{Colors.RESET} Gamification Stats endpoint validated")
+            self.stats.assert_true(
+                "total_badges" in data, "Stats should include total_badges"
+            )
+            self.stats.assert_true(
+                "total_achievements" in data, "Stats should include total_achievements"
+            )
+            print(
+                f"{Colors.GREEN}✓{Colors.RESET} Gamification Stats endpoint validated"
+            )
 
         # Validate volunteer gamification summary
         if self.volunteers:
-            print(f"{Colors.CYAN}Validating Volunteer Gamification Summary...{Colors.RESET}")
+            print(
+                f"{Colors.CYAN}Validating Volunteer Gamification Summary...{Colors.RESET}"
+            )
             volunteer = self.volunteers[0]
             volunteer_id = volunteer.get("id")
             response = self._make_request(
                 "GET",
                 f"/gamification/stats/volunteer/{volunteer_id}",
-                headers=self._get_auth_headers(self.admin_token) if self.admin_token else {}
+                headers=self._get_auth_headers(self.admin_token)
+                if self.admin_token
+                else {},
             )
             if response and response.status_code == 200:
                 data = response.json()
-                self.stats.assert_true("volunteer_id" in data, "Summary should include volunteer_id")
-                self.stats.assert_true("badges_earned" in data, "Summary should include badges_earned")
-                print(f"{Colors.GREEN}✓{Colors.RESET} Volunteer Gamification Summary validated")
+                self.stats.assert_true(
+                    "volunteer_id" in data, "Summary should include volunteer_id"
+                )
+                self.stats.assert_true(
+                    "badges_earned" in data, "Summary should include badges_earned"
+                )
+                print(
+                    f"{Colors.GREEN}✓{Colors.RESET} Volunteer Gamification Summary validated"
+                )
 
     def run(self, test_mode: bool = False):
         """Execute the complete seeding process.
@@ -1644,7 +2600,9 @@ class DataSeeder:
         """
         # Set counts based on mode
         if test_mode:
-            print(f"{Colors.YELLOW}Running in TEST MODE with minimal data{Colors.RESET}\n")
+            print(
+                f"{Colors.YELLOW}Running in TEST MODE with minimal data{Colors.RESET}\n"
+            )
             user_count = 5
             volunteer_count = 5
             project_count = 3
@@ -1652,6 +2610,8 @@ class DataSeeder:
             resource_count = 5
             time_log_count = 10
             notification_count = 5
+            blog_count = 3
+            newsletter_count = 5
         else:
             user_count = 50
             volunteer_count = 40
@@ -1660,6 +2620,8 @@ class DataSeeder:
             resource_count = 30
             time_log_count = 200
             notification_count = 50
+            blog_count = 15
+            newsletter_count = 50
 
         try:
             self.authenticate_users()
@@ -1679,6 +2641,13 @@ class DataSeeder:
             self.seed_volunteer_time_logs(time_log_count)
             self.seed_notifications(notification_count)
             self.validate_relationships()
+
+            # Blog seeding
+            self.seed_blog_posts(blog_count)
+            self.seed_blog_categories()
+
+            # Newsletter seeding
+            self.seed_newsletter_subscribers(newsletter_count)
 
             # Gamification seeding
             self.seed_badges()
@@ -1733,7 +2702,9 @@ class DataSeeder:
                     f.write("\n")
                 f.write("\n")
 
-        print(f"{Colors.GREEN}✓{Colors.RESET} Saved {len(self.credentials)} credentials to {creds_file}")
+        print(
+            f"{Colors.GREEN}✓{Colors.RESET} Saved {len(self.credentials)} credentials to {creds_file}"
+        )
 
 
 def main():
@@ -1744,28 +2715,28 @@ def main():
     parser.add_argument(
         "--api-url",
         default=os.getenv("API_URL", "http://localhost:8000"),
-        help="Base URL for the API (default: http://localhost:8000)"
+        help="Base URL for the API (default: http://localhost:8000)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Perform a dry run without actually creating data"
+        help="Perform a dry run without actually creating data",
     )
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Show all error messages (default: show first 3 per entity type)"
+        help="Show all error messages (default: show first 3 per entity type)",
     )
     parser.add_argument(
         "--delay",
         type=float,
         default=0.1,
-        help="Delay in seconds between requests (default: 0.1, increase if hitting rate limits)"
+        help="Delay in seconds between requests (default: 0.1, increase if hitting rate limits)",
     )
     parser.add_argument(
         "--test",
         action="store_true",
-        help="Run with minimal data for quick testing (5 users, 5 volunteers, 3 projects, etc.)"
+        help="Run with minimal data for quick testing (5 users, 5 volunteers, 3 projects, etc.)",
     )
 
     args = parser.parse_args()
@@ -1774,7 +2745,7 @@ def main():
         api_url=args.api_url,
         dry_run=args.dry_run,
         verbose=args.verbose,
-        delay=args.delay
+        delay=args.delay,
     )
     exit_code = seeder.run(test_mode=args.test)
     sys.exit(exit_code)

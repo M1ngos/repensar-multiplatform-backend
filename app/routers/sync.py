@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
+from app.models.user_preferences import UserPreferences
 from app.models.analytics import NotificationType
 from app.models.sync import (
     Device,
@@ -64,18 +65,25 @@ router = APIRouter(prefix="/sync", tags=["Sync & Offline"])
 # Map entity type strings to SQLModel classes
 # Add all models that support offline sync here
 ENTITY_MODELS: Dict[str, Type] = {
+    # User & Preferences
+    "user": User,
+    "user_preferences": UserPreferences,
+    # Volunteer entities
     "volunteer": Volunteer,
     "volunteer_skill": VolunteerSkill,
     "volunteer_skill_assignment": VolunteerSkillAssignment,
     "volunteer_time_log": VolunteerTimeLog,
     "volunteer_training": VolunteerTraining,
     "volunteer_training_record": VolunteerTrainingRecord,
+    # Project entities
     "project": Project,
     "project_team": ProjectTeam,
     "milestone": Milestone,
     "environmental_metric": EnvironmentalMetric,
+    # Task entities
     "task": Task,
     "task_dependency": TaskDependency,
+    # Resource entities
     "resource": Resource,
     "project_resource": ProjectResource,
 }
