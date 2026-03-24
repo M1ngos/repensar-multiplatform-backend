@@ -24,6 +24,7 @@ from app.routers import (
     blog,
     gamification,
     newsletter,
+    preferences,
 )
 from app.models import user, volunteer, project, task, resource
 from app.models import analytics as analytics_models
@@ -206,6 +207,9 @@ app.include_router(
 app.include_router(
     newsletter.router
 )  # Newsletter: /contact, /newsletter/* (subscriptions, campaigns)
+app.include_router(
+    preferences.router, prefix="/api/v1"
+)  # Preferences: /api/v1/preferences/* (user settings)
 
 
 @app.exception_handler(SQLAlchemyError)

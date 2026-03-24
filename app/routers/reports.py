@@ -290,6 +290,81 @@ def export_volunteers_csv(
         )
 
 
+@router.get("/export/volunteers/json")
+def export_volunteers_json(
+    volunteer_status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export volunteers to JSON format.
+    """
+    try:
+        if current_user.user_type.name not in [
+            "admin",
+            "project_manager",
+            "staff_member",
+        ]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to export volunteer data",
+            )
+
+        volunteers = volunteer_crud.get_volunteers(db, skip=0, limit=10000)
+
+        if volunteer_status:
+            volunteers = [
+                v for v in volunteers if v.volunteer_status == volunteer_status
+            ]
+
+        export_data = []
+        for volunteer in volunteers:
+            user = db.get(User, volunteer.user_id)
+            export_data.append(
+                {
+                    "volunteer_id": volunteer.volunteer_id,
+                    "user_id": volunteer.user_id,
+                    "name": user.name if user else None,
+                    "email": user.email if user else None,
+                    "phone": user.phone if user else None,
+                    "date_of_birth": volunteer.date_of_birth.isoformat()
+                    if volunteer.date_of_birth
+                    else None,
+                    "gender": volunteer.gender,
+                    "city": volunteer.city,
+                    "postal_code": volunteer.postal_code,
+                    "status": volunteer.volunteer_status,
+                    "background_check_status": volunteer.background_check_status,
+                    "total_hours": float(volunteer.total_hours_contributed)
+                    if volunteer.total_hours_contributed
+                    else 0.0,
+                    "joined_date": volunteer.joined_date.isoformat()
+                    if volunteer.joined_date
+                    else None,
+                    "created_at": volunteer.created_at.isoformat()
+                    if volunteer.created_at
+                    else None,
+                }
+            )
+
+        filename = f"volunteers_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        return Response(
+            content=json.dumps({"volunteers": export_data, "count": len(export_data)}),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to export volunteers to JSON: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export volunteers.",
+        )
+
+
 @router.get("/export/tasks/csv")
 def export_tasks_csv(
     project_id: Optional[int] = None,
@@ -370,6 +445,67 @@ def export_tasks_csv(
         )
 
 
+@router.get("/export/tasks/json")
+def export_tasks_json(
+    project_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export tasks to JSON format.
+    """
+    try:
+        tasks = task_crud.get_tasks(
+            db, skip=0, limit=10000, project_id=project_id, status=status
+        )
+
+        export_data = []
+        for task in tasks:
+            project = db.get(Project, task.project_id)
+            export_data.append(
+                {
+                    "id": task.id,
+                    "title": task.title,
+                    "project_id": task.project_id,
+                    "project_name": project.name if project else None,
+                    "status": task.status,
+                    "priority": task.priority,
+                    "assigned_to_id": task.assigned_to_id,
+                    "estimated_hours": float(task.estimated_hours)
+                    if task.estimated_hours
+                    else None,
+                    "actual_hours": float(task.actual_hours)
+                    if task.actual_hours
+                    else None,
+                    "progress_percentage": float(task.progress_percentage)
+                    if task.progress_percentage
+                    else None,
+                    "suitable_for_volunteers": task.suitable_for_volunteers,
+                    "created_at": task.created_at.isoformat()
+                    if task.created_at
+                    else None,
+                }
+            )
+
+        filename = f"tasks_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        return Response(
+            content=json.dumps({"tasks": export_data, "count": len(export_data)}),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to export tasks to JSON: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export tasks.",
+        )
+
+
 @router.get("/export/time-logs/csv")
 def export_time_logs_csv(
     project_id: Optional[int] = None,
@@ -408,7 +544,7 @@ def export_time_logs_csv(
         if end_date:
             filters.append(VolunteerTimeLog.date <= end_date)
         if approval_status:
-            filters.append(VolunteerTimeLog.approval_status == approval_status)
+            filters.append(VolunteerTimeLog.approved == (approval_status == "approved"))
 
         if filters:
             from sqlmodel import and_
@@ -432,8 +568,7 @@ def export_time_logs_csv(
                 "Task ID",
                 "Date",
                 "Hours",
-                "Activity",
-                "Description",
+                "Activity Description",
                 "Supervisor ID",
                 "Approval Status",
                 "Created At",
@@ -456,10 +591,9 @@ def export_time_logs_csv(
                     log.task_id or "",
                     log.date.isoformat(),
                     float(log.hours),
-                    log.activity or "",
-                    log.description or "",
+                    log.activity_description or "",
                     log.supervisor_id or "",
-                    log.approval_status,
+                    "approved" if log.approved else "pending",
                     log.created_at.isoformat(),
                 ]
             )
@@ -478,6 +612,94 @@ def export_time_logs_csv(
         raise
     except Exception as e:
         logger.error("Failed to export time logs to CSV: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export time logs.",
+        )
+
+
+@router.get("/export/time-logs/json")
+def export_time_logs_json(
+    project_id: Optional[int] = None,
+    volunteer_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    approval_status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export volunteer time logs to JSON format.
+    """
+    try:
+        if current_user.user_type.name not in [
+            "admin",
+            "project_manager",
+            "staff_member",
+        ]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to export time log data",
+            )
+
+        query = select(VolunteerTimeLog)
+
+        filters = []
+        if project_id:
+            filters.append(VolunteerTimeLog.project_id == project_id)
+        if volunteer_id:
+            filters.append(VolunteerTimeLog.volunteer_id == volunteer_id)
+        if start_date:
+            filters.append(VolunteerTimeLog.date >= start_date)
+        if end_date:
+            filters.append(VolunteerTimeLog.date <= end_date)
+        if approval_status:
+            filters.append(VolunteerTimeLog.approved == (approval_status == "approved"))
+
+        if filters:
+            from sqlmodel import and_
+
+            query = query.where(and_(*filters))
+
+        time_logs = db.exec(query.limit(10000)).all()
+
+        export_data = []
+        for log in time_logs:
+            volunteer = db.get(Volunteer, log.volunteer_id)
+            user = db.get(User, volunteer.user_id) if volunteer else None
+            project = db.get(Project, log.project_id) if log.project_id else None
+
+            export_data.append(
+                {
+                    "id": log.id,
+                    "volunteer_id": log.volunteer_id,
+                    "volunteer_name": user.name if user else None,
+                    "project_id": log.project_id,
+                    "project_name": project.name if project else None,
+                    "task_id": log.task_id,
+                    "date": log.date.isoformat() if log.date else None,
+                    "hours": float(log.hours),
+                    "activity_description": log.activity_description,
+                    "supervisor_id": log.supervisor_id,
+                    "approved": log.approved,
+                    "created_at": log.created_at.isoformat()
+                    if log.created_at
+                    else None,
+                }
+            )
+
+        filename = f"time_logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        return Response(
+            content=json.dumps({"time_logs": export_data, "count": len(export_data)}),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to export time logs to JSON: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to export time logs.",
