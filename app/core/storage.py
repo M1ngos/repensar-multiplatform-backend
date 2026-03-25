@@ -2,6 +2,7 @@
 """
 File storage service supporting local filesystem and AWS S3.
 """
+
 import os
 import uuid
 import hashlib
@@ -57,8 +58,11 @@ class StorageService:
         if storage_backend == "s3":
             try:
                 import boto3
+
                 self.s3_client = boto3.client("s3", region_name=s3_region)
-                logger.info(f"S3 storage initialized: bucket={s3_bucket}, region={s3_region}")
+                logger.info(
+                    f"S3 storage initialized: bucket={s3_bucket}, region={s3_region}"
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
                 raise
@@ -108,7 +112,7 @@ class StorageService:
         file_content: bytes,
         filename: str,
         category: str = "general",
-        user_id: int = 0
+        user_id: int = 0,
     ) -> Tuple[str, int]:
         """
         Save file to storage.
@@ -125,7 +129,9 @@ class StorageService:
         # Check file size
         file_size = len(file_content)
         if file_size > self.max_file_size:
-            raise ValueError(f"File size {file_size} exceeds maximum {self.max_file_size}")
+            raise ValueError(
+                f"File size {file_size} exceeds maximum {self.max_file_size}"
+            )
 
         # Generate unique filename
         unique_filename = self.generate_filename(filename, user_id)
@@ -175,10 +181,7 @@ class StorageService:
                     return True
             else:
                 # Delete from S3
-                self.s3_client.delete_object(
-                    Bucket=self.s3_bucket,
-                    Key=file_path
-                )
+                self.s3_client.delete_object(Bucket=self.s3_bucket, Key=file_path)
                 logger.info(f"Deleted file from S3: {file_path}")
                 return True
         except Exception as e:
@@ -197,15 +200,21 @@ class StorageService:
             File URL
         """
         if self.storage_backend == "local":
-            # For local files, return relative path (served by FastAPI static files)
-            return f"/files/{file_path}"
+            # Strip the upload_dir prefix so the URL is relative to the static mount
+            # file_path is like "./uploads/profile/filename.jpg"
+            # We serve /uploads/ as a static mount so strip everything before "uploads/"
+            clean = file_path.replace("\\", "/")
+            if "uploads/" in clean:
+                relative = clean[clean.index("uploads/") :]
+                return f"/{relative}"
+            return f"/uploads/{Path(file_path).name}"
         else:
             # Generate presigned S3 URL
             try:
                 url = self.s3_client.generate_presigned_url(
                     "get_object",
                     Params={"Bucket": self.s3_bucket, "Key": file_path},
-                    ExpiresIn=expiration
+                    ExpiresIn=expiration,
                 )
                 return url
             except Exception as e:
@@ -216,7 +225,7 @@ class StorageService:
         self,
         image_content: bytes,
         max_size: Tuple[int, int] = (300, 300),
-        quality: int = 85
+        quality: int = 85,
     ) -> bytes:
         """
         Create thumbnail from image.
@@ -239,7 +248,9 @@ class StorageService:
                 background = Image.new("RGB", image.size, (255, 255, 255))
                 if image.mode == "P":
                     image = image.convert("RGBA")
-                background.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
+                background.paste(
+                    image, mask=image.split()[-1] if image.mode == "RGBA" else None
+                )
                 image = background
 
             # Create thumbnail
@@ -273,7 +284,9 @@ class StorageService:
             logger.error(f"Failed to get image dimensions: {e}")
             return (0, 0)
 
-    def validate_image(self, image_content: bytes, max_dimensions: Tuple[int, int] = (4000, 4000)) -> bool:
+    def validate_image(
+        self, image_content: bytes, max_dimensions: Tuple[int, int] = (4000, 4000)
+    ) -> bool:
         """
         Validate image file.
 
@@ -289,7 +302,9 @@ class StorageService:
 
             # Check dimensions
             if image.width > max_dimensions[0] or image.height > max_dimensions[1]:
-                logger.warning(f"Image dimensions {image.size} exceed maximum {max_dimensions}")
+                logger.warning(
+                    f"Image dimensions {image.size} exceed maximum {max_dimensions}"
+                )
                 return False
 
             # Check format
