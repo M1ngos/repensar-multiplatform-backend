@@ -12,7 +12,7 @@ from typing import List, Optional
 from decimal import Decimal
 
 from app.database.engine import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.volunteer import Volunteer
 from app.crud.gamification import (
@@ -923,10 +923,9 @@ async def get_global_rankings(
 async def get_leaderboard(
     leaderboard_type: str,
     timeframe: str = Query("all_time", description="all_time, weekly, or monthly"),
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get leaderboard by type and timeframe."""
+    """Get leaderboard by type and timeframe. Public — no auth required."""
     leaderboard = leaderboard_crud.get_current_leaderboard(
         db, leaderboard_type, timeframe
     )
