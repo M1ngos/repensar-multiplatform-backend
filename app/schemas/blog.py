@@ -1,5 +1,5 @@
 # app/schemas/blog.py
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -61,8 +61,16 @@ class Tag(TagBase):
 # Author Schema (lightweight user info)
 class Author(BaseModel):
     id: int
-    full_name: str
+    full_name: Optional[str] = None
     email: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def derive_full_name(cls, values: dict) -> dict:
+        """Map User.name → full_name when full_name is absent."""
+        if isinstance(values, dict) and not values.get("full_name"):
+            values["full_name"] = values.get("name") or ""
+        return values
 
     class Config:
         from_attributes = True
@@ -81,16 +89,16 @@ class BlogPostCreate(BlogPostBase):
     category_ids: List[int] = []
     tag_ids: List[int] = []
 
-    @field_validator('title')
+    @field_validator("title")
     def validate_title(cls, v):
         if not v or len(v.strip()) == 0:
-            raise ValueError('Title cannot be empty')
+            raise ValueError("Title cannot be empty")
         return v
 
-    @field_validator('content')
+    @field_validator("content")
     def validate_content(cls, v):
         if not v or len(v.strip()) == 0:
-            raise ValueError('Content cannot be empty')
+            raise ValueError("Content cannot be empty")
         return v
 
 
@@ -103,16 +111,16 @@ class BlogPostUpdate(BaseModel):
     category_ids: Optional[List[int]] = None
     tag_ids: Optional[List[int]] = None
 
-    @field_validator('title')
+    @field_validator("title")
     def validate_title(cls, v):
         if v is not None and len(v.strip()) == 0:
-            raise ValueError('Title cannot be empty')
+            raise ValueError("Title cannot be empty")
         return v
 
-    @field_validator('content')
+    @field_validator("content")
     def validate_content(cls, v):
         if v is not None and len(v.strip()) == 0:
-            raise ValueError('Content cannot be empty')
+            raise ValueError("Content cannot be empty")
         return v
 
 
@@ -133,6 +141,7 @@ class BlogPost(BlogPostBase):
 
 class BlogPostSummary(BaseModel):
     """Lightweight blog post for list views"""
+
     id: int
     title: str
     slug: str
@@ -153,6 +162,7 @@ class BlogPostSummary(BaseModel):
 
 class BlogPostListResponse(BaseModel):
     """Paginated list of blog posts"""
+
     items: List[BlogPostSummary]
     total: int
     skip: int
@@ -161,6 +171,7 @@ class BlogPostListResponse(BaseModel):
 
 class CategoryListResponse(BaseModel):
     """Paginated list of categories"""
+
     items: List[Category]
     total: int
     skip: int
@@ -169,6 +180,7 @@ class CategoryListResponse(BaseModel):
 
 class TagListResponse(BaseModel):
     """Paginated list of tags"""
+
     items: List[Tag]
     total: int
     skip: int
