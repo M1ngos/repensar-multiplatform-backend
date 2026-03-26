@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     # URLs
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+
+    # Debug mode
+    DEBUG: bool = False
 
     # Newsletter Configuration
     NEWSLETTER_FROM_EMAIL: Optional[str] = None  # Falls back to EMAIL_FROM

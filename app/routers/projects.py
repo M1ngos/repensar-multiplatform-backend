@@ -96,7 +96,7 @@ def create_project(
         )
 
 
-@router.get("/", response_model=List[ProjectSummary])
+@router.get("", response_model=List[ProjectSummary])
 def get_projects(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),

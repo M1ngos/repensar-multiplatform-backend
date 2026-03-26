@@ -60,7 +60,7 @@ def create_resource(
     return Resource(**resource.model_dump())
 
 
-@router.get("/", response_model=List[Resource])
+@router.get("", response_model=List[Resource])
 def get_resources(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),

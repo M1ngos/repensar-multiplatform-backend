@@ -186,7 +186,7 @@ def get_my_volunteer_profile(
         )
 
 
-@router.get("/", response_model=List[VolunteerSummary])
+@router.get("", response_model=List[VolunteerSummary])
 def get_volunteers(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),

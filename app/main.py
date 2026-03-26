@@ -166,6 +166,7 @@ app = FastAPI(
     description="Backend API for Repensar multiplatform application with production-grade JWT authentication",
     version="2.0.0",
     lifespan=lifespan,
+    redirect_slashes=False,  # Prevent 307 redirects leaking internal backend URL through the proxy
 )
 
 # Serve uploaded files as static assets
@@ -174,16 +175,11 @@ os.makedirs(_uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 
 # Configure CORS
+_origins = list(set(settings.CORS_ORIGINS + [settings.FRONTEND_URL]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL,  # Frontend URL from settings
-        "http://localhost:3000",  # React default
-        "http://localhost:3001",  # Alternative React port
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://192.168.1.81:3000",
-    ],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allow all headers

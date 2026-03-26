@@ -104,7 +104,7 @@ def create_user(
         )
 
 
-@router.get("/", response_model=PaginatedResponse[UserSummary])
+@router.get("", response_model=PaginatedResponse[UserSummary])
 def get_users(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
