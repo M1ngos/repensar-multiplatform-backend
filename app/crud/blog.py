@@ -5,12 +5,21 @@ from datetime import datetime
 import re
 
 from app.models.blog import (
-    BlogPost, Category, Tag, BlogPostCategory, BlogPostTag, BlogPostStatus
+    BlogPost,
+    Category,
+    Tag,
+    BlogPostCategory,
+    BlogPostTag,
+    BlogPostStatus,
 )
 from app.models.user import User
 from app.schemas.blog import (
-    BlogPostCreate, BlogPostUpdate, CategoryCreate, CategoryUpdate,
-    TagCreate, TagUpdate
+    BlogPostCreate,
+    BlogPostUpdate,
+    CategoryCreate,
+    CategoryUpdate,
+    TagCreate,
+    TagUpdate,
 )
 
 
@@ -18,9 +27,11 @@ def generate_slug(text: str, db: Session, model_class) -> str:
     """Generate a unique slug from text."""
     # Convert to lowercase and replace spaces with hyphens
     slug = text.lower().strip()
-    slug = re.sub(r'[^\w\s-]', '', slug)  # Remove special characters
-    slug = re.sub(r'[-\s]+', '-', slug)  # Replace spaces/multiple hyphens with single hyphen
-    slug = slug.strip('-')  # Remove leading/trailing hyphens
+    slug = re.sub(r"[^\w\s-]", "", slug)  # Remove special characters
+    slug = re.sub(
+        r"[-\s]+", "-", slug
+    )  # Replace spaces/multiple hyphens with single hyphen
+    slug = slug.strip("-")  # Remove leading/trailing hyphens
 
     # Ensure uniqueness
     original_slug = slug
@@ -39,10 +50,7 @@ class BlogCRUD:
     # ============ Blog Post Operations ============
 
     def create_blog_post(
-        self,
-        db: Session,
-        post_data: BlogPostCreate,
-        author_id: int
+        self, db: Session, post_data: BlogPostCreate, author_id: int
     ) -> BlogPost:
         """Create a new blog post."""
         # Generate slug from title
@@ -50,9 +58,9 @@ class BlogCRUD:
 
         # Create the blog post
         blog_post = BlogPost(
-            **post_data.model_dump(exclude={'category_ids', 'tag_ids'}),
+            **post_data.model_dump(exclude={"category_ids", "tag_ids"}),
             slug=slug,
-            author_id=author_id
+            author_id=author_id,
         )
 
         # Set published_at if status is published
@@ -67,18 +75,14 @@ class BlogCRUD:
         if post_data.category_ids:
             for category_id in post_data.category_ids:
                 blog_post_category = BlogPostCategory(
-                    blog_post_id=blog_post.id,
-                    category_id=category_id
+                    blog_post_id=blog_post.id, category_id=category_id
                 )
                 db.add(blog_post_category)
 
         # Associate tags
         if post_data.tag_ids:
             for tag_id in post_data.tag_ids:
-                blog_post_tag = BlogPostTag(
-                    blog_post_id=blog_post.id,
-                    tag_id=tag_id
-                )
+                blog_post_tag = BlogPostTag(blog_post_id=blog_post.id, tag_id=tag_id)
                 db.add(blog_post_tag)
 
         db.commit()
@@ -103,7 +107,7 @@ class BlogCRUD:
         tag: Optional[str] = None,
         author_id: Optional[int] = None,
         search: Optional[str] = None,
-        include_drafts: bool = False
+        include_drafts: bool = False,
     ) -> tuple[List[BlogPost], int]:
         """Get blog posts with filtering options. Returns (posts, total_count)."""
         query = select(BlogPost)
@@ -126,7 +130,7 @@ class BlogCRUD:
                 or_(
                     BlogPost.title.ilike(search_pattern),
                     BlogPost.excerpt.ilike(search_pattern),
-                    BlogPost.content.ilike(search_pattern)
+                    BlogPost.content.ilike(search_pattern),
                 )
             )
 
@@ -173,28 +177,30 @@ class BlogCRUD:
         return posts, total
 
     def update_blog_post(
-        self,
-        db: Session,
-        post_id: int,
-        post_data: BlogPostUpdate
+        self, db: Session, post_id: int, post_data: BlogPostUpdate
     ) -> Optional[BlogPost]:
         """Update blog post."""
         blog_post = db.get(BlogPost, post_id)
         if not blog_post:
             return None
 
-        update_data = post_data.model_dump(exclude_unset=True, exclude={'category_ids', 'tag_ids'})
+        update_data = post_data.model_dump(
+            exclude_unset=True, exclude={"category_ids", "tag_ids"}
+        )
 
         # Update slug if title changed
-        if 'title' in update_data and update_data['title'] != blog_post.title:
-            update_data['slug'] = generate_slug(update_data['title'], db, BlogPost)
+        if "title" in update_data and update_data["title"] != blog_post.title:
+            update_data["slug"] = generate_slug(update_data["title"], db, BlogPost)
 
         # Handle status change to published
-        if 'status' in update_data:
-            if update_data['status'] == BlogPostStatus.published and blog_post.status != BlogPostStatus.published:
-                update_data['published_at'] = datetime.utcnow()
-            elif update_data['status'] == BlogPostStatus.draft:
-                update_data['published_at'] = None
+        if "status" in update_data:
+            if (
+                update_data["status"] == BlogPostStatus.published
+                and blog_post.status != BlogPostStatus.published
+            ):
+                update_data["published_at"] = datetime.utcnow()
+            elif update_data["status"] == BlogPostStatus.draft:
+                update_data["published_at"] = None
 
         # Update fields
         for field, value in update_data.items():
@@ -208,29 +214,29 @@ class BlogCRUD:
             db.exec(
                 select(BlogPostCategory).where(BlogPostCategory.blog_post_id == post_id)
             )
-            for bpc in db.exec(select(BlogPostCategory).where(BlogPostCategory.blog_post_id == post_id)).all():
+            for bpc in db.exec(
+                select(BlogPostCategory).where(BlogPostCategory.blog_post_id == post_id)
+            ).all():
                 db.delete(bpc)
 
             # Add new associations
             for category_id in post_data.category_ids:
                 blog_post_category = BlogPostCategory(
-                    blog_post_id=post_id,
-                    category_id=category_id
+                    blog_post_id=post_id, category_id=category_id
                 )
                 db.add(blog_post_category)
 
         # Update tags if provided
         if post_data.tag_ids is not None:
             # Remove existing associations
-            for bpt in db.exec(select(BlogPostTag).where(BlogPostTag.blog_post_id == post_id)).all():
+            for bpt in db.exec(
+                select(BlogPostTag).where(BlogPostTag.blog_post_id == post_id)
+            ).all():
                 db.delete(bpt)
 
             # Add new associations
             for tag_id in post_data.tag_ids:
-                blog_post_tag = BlogPostTag(
-                    blog_post_id=post_id,
-                    tag_id=tag_id
-                )
+                blog_post_tag = BlogPostTag(blog_post_id=post_id, tag_id=tag_id)
                 db.add(blog_post_tag)
 
         db.commit()
@@ -244,9 +250,13 @@ class BlogCRUD:
             return False
 
         # Delete associations first
-        for bpc in db.exec(select(BlogPostCategory).where(BlogPostCategory.blog_post_id == post_id)).all():
+        for bpc in db.exec(
+            select(BlogPostCategory).where(BlogPostCategory.blog_post_id == post_id)
+        ).all():
             db.delete(bpc)
-        for bpt in db.exec(select(BlogPostTag).where(BlogPostTag.blog_post_id == post_id)).all():
+        for bpt in db.exec(
+            select(BlogPostTag).where(BlogPostTag.blog_post_id == post_id)
+        ).all():
             db.delete(bpt)
 
         db.delete(blog_post)
@@ -281,7 +291,9 @@ class BlogCRUD:
         db.refresh(blog_post)
         return blog_post
 
-    def get_blog_post_with_details(self, db: Session, post_id: int) -> Optional[Dict[str, Any]]:
+    def get_blog_post_with_details(
+        self, db: Session, post_id: int
+    ) -> Optional[Dict[str, Any]]:
         """Get blog post with author, categories, and tags."""
         blog_post = db.get(BlogPost, post_id)
         if not blog_post:
@@ -292,7 +304,9 @@ class BlogCRUD:
 
         # Get categories
         category_ids = db.exec(
-            select(BlogPostCategory.category_id).where(BlogPostCategory.blog_post_id == post_id)
+            select(BlogPostCategory.category_id).where(
+                BlogPostCategory.blog_post_id == post_id
+            )
         ).all()
         categories = [db.get(Category, cat_id) for cat_id in category_ids]
 
@@ -306,7 +320,7 @@ class BlogCRUD:
             "blog_post": blog_post,
             "author": author,
             "categories": categories,
-            "tags": tags
+            "tags": tags,
         }
 
     # ============ Category Operations ============
@@ -315,10 +329,7 @@ class BlogCRUD:
         """Create a new category."""
         slug = generate_slug(category_data.name, db, Category)
 
-        category = Category(
-            **category_data.model_dump(),
-            slug=slug
-        )
+        category = Category(**category_data.model_dump(), slug=slug)
 
         db.add(category)
         db.commit()
@@ -334,10 +345,7 @@ class BlogCRUD:
         return db.exec(select(Category).where(Category.slug == slug)).first()
 
     def get_categories(
-        self,
-        db: Session,
-        skip: int = 0,
-        limit: int = 50
+        self, db: Session, skip: int = 0, limit: int = 50
     ) -> tuple[List[Category], int]:
         """Get all categories with post counts. Returns (categories, total_count)."""
         query = select(Category).order_by(Category.name)
@@ -349,10 +357,7 @@ class BlogCRUD:
         return categories, total
 
     def update_category(
-        self,
-        db: Session,
-        category_id: int,
-        category_data: CategoryUpdate
+        self, db: Session, category_id: int, category_data: CategoryUpdate
     ) -> Optional[Category]:
         """Update category."""
         category = db.get(Category, category_id)
@@ -362,8 +367,8 @@ class BlogCRUD:
         update_data = category_data.model_dump(exclude_unset=True)
 
         # Update slug if name changed
-        if 'name' in update_data and update_data['name'] != category.name:
-            update_data['slug'] = generate_slug(update_data['name'], db, Category)
+        if "name" in update_data and update_data["name"] != category.name:
+            update_data["slug"] = generate_slug(update_data["name"], db, Category)
 
         for field, value in update_data.items():
             setattr(category, field, value)
@@ -380,7 +385,9 @@ class BlogCRUD:
 
         # Check if category has associated posts
         post_count = db.exec(
-            select(func.count(BlogPostCategory.id)).where(BlogPostCategory.category_id == category_id)
+            select(func.count(BlogPostCategory.id)).where(
+                BlogPostCategory.category_id == category_id
+            )
         ).first()
 
         if post_count and post_count > 0:
@@ -392,9 +399,14 @@ class BlogCRUD:
 
     def get_category_post_count(self, db: Session, category_id: int) -> int:
         """Get the number of posts in a category."""
-        return db.exec(
-            select(func.count(BlogPostCategory.id)).where(BlogPostCategory.category_id == category_id)
-        ).first() or 0
+        return (
+            db.exec(
+                select(func.count(BlogPostCategory.id)).where(
+                    BlogPostCategory.category_id == category_id
+                )
+            ).first()
+            or 0
+        )
 
     # ============ Tag Operations ============
 
@@ -402,10 +414,7 @@ class BlogCRUD:
         """Create a new tag."""
         slug = generate_slug(tag_data.name, db, Tag)
 
-        tag = Tag(
-            **tag_data.model_dump(),
-            slug=slug
-        )
+        tag = Tag(**tag_data.model_dump(), slug=slug)
 
         db.add(tag)
         db.commit()
@@ -421,10 +430,7 @@ class BlogCRUD:
         return db.exec(select(Tag).where(Tag.slug == slug)).first()
 
     def get_tags(
-        self,
-        db: Session,
-        skip: int = 0,
-        limit: int = 100
+        self, db: Session, skip: int = 0, limit: int = 100
     ) -> tuple[List[Tag], int]:
         """Get all tags with post counts. Returns (tags, total_count)."""
         query = select(Tag).order_by(Tag.name)
@@ -436,10 +442,7 @@ class BlogCRUD:
         return tags, total
 
     def update_tag(
-        self,
-        db: Session,
-        tag_id: int,
-        tag_data: TagUpdate
+        self, db: Session, tag_id: int, tag_data: TagUpdate
     ) -> Optional[Tag]:
         """Update tag."""
         tag = db.get(Tag, tag_id)
@@ -449,8 +452,8 @@ class BlogCRUD:
         update_data = tag_data.model_dump(exclude_unset=True)
 
         # Update slug if name changed
-        if 'name' in update_data and update_data['name'] != tag.name:
-            update_data['slug'] = generate_slug(update_data['name'], db, Tag)
+        if "name" in update_data and update_data["name"] != tag.name:
+            update_data["slug"] = generate_slug(update_data["name"], db, Tag)
 
         for field, value in update_data.items():
             setattr(tag, field, value)
@@ -466,7 +469,9 @@ class BlogCRUD:
             return False
 
         # Remove associations
-        for bpt in db.exec(select(BlogPostTag).where(BlogPostTag.tag_id == tag_id)).all():
+        for bpt in db.exec(
+            select(BlogPostTag).where(BlogPostTag.tag_id == tag_id)
+        ).all():
             db.delete(bpt)
 
         db.delete(tag)
@@ -475,9 +480,12 @@ class BlogCRUD:
 
     def get_tag_post_count(self, db: Session, tag_id: int) -> int:
         """Get the number of posts with a tag."""
-        return db.exec(
-            select(func.count(BlogPostTag.id)).where(BlogPostTag.tag_id == tag_id)
-        ).first() or 0
+        return (
+            db.exec(
+                select(func.count(BlogPostTag.id)).where(BlogPostTag.tag_id == tag_id)
+            ).first()
+            or 0
+        )
 
 
 # Create singleton instance

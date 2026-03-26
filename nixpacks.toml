@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Nixpacks build configuration for Railway
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Why this file exists:
+#   python-magic (used for file-type detection in uploads) requires the
+#   libmagic system library at runtime. On nixpkgs, the `file` package
+#   provides both the `file` CLI utility AND the underlying libmagic shared
+#   library (libmagic.so). Without it, importing python-magic raises:
+#
+#       MagicException: failed to find libmagic — install it first
+#
+# If python-magic still fails to find libmagic after deploying, add
+# "libmagic" to the nixPkgs list below as an explicit fallback.
+#
+# Python version is pinned to 3.11 to match .python-version and pyproject.toml.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[phases.setup]
+nixPkgs = ["python311", "file"]
+
+[phases.install]
+cmds = [
+    "pip install uv",
+    "uv sync --no-dev"
+]
+
+[start]
+cmd = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"

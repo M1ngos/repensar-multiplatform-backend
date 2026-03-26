@@ -178,7 +178,9 @@ def get_blog_posts(
 
 @router.get("/posts/{post_id}", response_model=BlogPost)
 def get_blog_post(
-    post_id: int, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Get a single blog post by ID.
@@ -217,7 +219,9 @@ def get_blog_post(
 
 @router.get("/posts/by-slug/{slug}", response_model=BlogPost)
 def get_blog_post_by_slug(
-    slug: str, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)
+    slug: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Get a single blog post by slug.
