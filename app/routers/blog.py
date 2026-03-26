@@ -7,7 +7,7 @@ from sqlmodel import Session
 from typing import List, Optional
 
 from app.database.engine import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.blog import BlogPostStatus
 from app.crud.blog import blog_crud
@@ -108,7 +108,7 @@ def get_blog_posts(
     author_id: Optional[int] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: Optional[User] = None,
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Get list of blog posts with filtering options.
@@ -178,7 +178,7 @@ def get_blog_posts(
 
 @router.get("/posts/{post_id}", response_model=BlogPost)
 def get_blog_post(
-    post_id: int, db: Session = Depends(get_db), current_user: Optional[User] = None
+    post_id: int, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)
 ):
     """
     Get a single blog post by ID.
@@ -217,7 +217,7 @@ def get_blog_post(
 
 @router.get("/posts/by-slug/{slug}", response_model=BlogPost)
 def get_blog_post_by_slug(
-    slug: str, db: Session = Depends(get_db), current_user: Optional[User] = None
+    slug: str, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)
 ):
     """
     Get a single blog post by slug.
