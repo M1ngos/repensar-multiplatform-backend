@@ -4,7 +4,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
-from sqlmodel import Session
+from sqlmodel import Session, select, func
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,7 @@ from app.database.engine import get_db
 from app.core.deps import get_current_user
 from app.models.user import User, UserType
 from app.crud.user import user_crud
+from app.models.volunteer import Volunteer
 from app.crud.volunteer import volunteer_crud
 from app.schemas.user import (
     UserSummary,
@@ -61,7 +62,9 @@ def create_user(
         # If user_type is volunteer, create volunteer profile
         if user_data.user_type == "volunteer":
             try:
-                volunteer_count = len(volunteer_crud.get_volunteers(db))
+                volunteer_count = db.exec(
+                    select(func.count()).select_from(Volunteer)
+                ).one()
                 volunteer_data = VolunteerCreate(
                     user_id=user.id,
                     volunteer_id=f"VLT{volunteer_count + 1:03d}",
@@ -70,7 +73,9 @@ def create_user(
                 volunteer_crud.create_volunteer(db, volunteer_data)
             except Exception as e:
                 # If volunteer creation fails, still return user but log error
-                print(f"Warning: Failed to create volunteer profile: {e}")
+                logger.error(
+                    "Failed to create volunteer profile for user %s: %s", user.id, e
+                )
 
         return UserDetail(
             id=user.id,
@@ -480,7 +485,9 @@ def change_user_role(
                 db.add(volunteer)
                 db.commit()
             else:
-                volunteer_count = len(volunteer_crud.get_volunteers(db))
+                volunteer_count = db.exec(
+                    select(func.count()).select_from(Volunteer)
+                ).one()
                 volunteer_data = VolunteerCreate(
                     user_id=user_id,
                     volunteer_id=f"VLT{volunteer_count + 1:03d}",

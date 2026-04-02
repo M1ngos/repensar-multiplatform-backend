@@ -6,26 +6,41 @@ This file demonstrates the integration of all security features.
 
 from datetime import datetime, timedelta, timezone, date
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from typing import Dict, Any, Optional
 import logging
 import secrets
 
 from app.core.auth import (
-    verify_password, get_password_hash, verify_token,
-    is_user_locked, increment_login_attempts, reset_login_attempts, generate_token
+    verify_password,
+    get_password_hash,
+    verify_token,
+    is_user_locked,
+    increment_login_attempts,
+    reset_login_attempts,
+    generate_token,
 )
 from app.core.audit_log import (
-    get_audit_logger, AuditEvent, AuditEventType, AuditEventSeverity
+    get_audit_logger,
+    AuditEvent,
+    AuditEventType,
+    AuditEventSeverity,
 )
 from app.core.auth_helpers import (
-    get_client_ip, get_user_agent, check_login_rate_limit,
-    check_register_rate_limit, check_token_refresh_rate_limit,
-    check_password_reset_rate_limit, reset_login_rate_limit, log_and_create_tokens
+    get_client_ip,
+    get_user_agent,
+    check_login_rate_limit,
+    check_register_rate_limit,
+    check_token_refresh_rate_limit,
+    check_password_reset_rate_limit,
+    reset_login_rate_limit,
+    log_and_create_tokens,
 )
 from app.core.token_manager import (
-    get_token_blacklist, revoke_refresh_token_family,
-    revoke_all_user_tokens, revoke_token
+    get_token_blacklist,
+    revoke_refresh_token_family,
+    revoke_all_user_tokens,
+    revoke_token,
 )
 from app.core.audit_log import get_audit_logger
 from app.core.rate_limiter import RateLimitExceeded
@@ -33,16 +48,27 @@ from app.core.deps import get_current_active_user, get_db, get_current_user
 from app.core.config import settings
 from app.core.email import send_verification_email, send_password_reset_email
 from app.core.oauth import (
-    get_google_oauth_url, exchange_code_for_tokens,
-    get_google_user_info, validate_google_oauth_config
+    get_google_oauth_url,
+    exchange_code_for_tokens,
+    get_google_user_info,
+    validate_google_oauth_config,
 )
 from app.models.user import User, UserType
+from app.models.volunteer import Volunteer
 from app.crud.volunteer import volunteer_crud
 from app.schemas.volunteer import VolunteerCreate
 from app.schemas.auth import (
-    LoginRequest, RegisterRequest, Token, RefreshTokenRequest,
-    UserProfile, PasswordResetRequest, PasswordReset, ChangePassword,
-    ResendVerificationRequest, GoogleAuthURL, GoogleAuthCallback
+    LoginRequest,
+    RegisterRequest,
+    Token,
+    RefreshTokenRequest,
+    UserProfile,
+    PasswordResetRequest,
+    PasswordReset,
+    ChangePassword,
+    ResendVerificationRequest,
+    GoogleAuthURL,
+    GoogleAuthCallback,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -60,9 +86,7 @@ def _as_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 
 @router.post("/login", response_model=Token)
 async def login(
-    login_data: LoginRequest,
-    request: Request,
-    db: Session = Depends(get_db)
+    login_data: LoginRequest, request: Request, db: Session = Depends(get_db)
 ):
     """
     Login with email and password.
@@ -85,12 +109,12 @@ async def login(
             email=login_data.email,
             reason="Rate limit exceeded",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many login attempts. Retry after {e.retry_after} seconds.",
-            headers={"Retry-After": str(e.retry_after)}
+            headers={"Retry-After": str(e.retry_after)},
         )
 
     # Find user by email
@@ -101,11 +125,11 @@ async def login(
             email=login_data.email,
             reason="User not found",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     # Check if user is locked
@@ -114,11 +138,11 @@ async def login(
             email=login_data.email,
             reason="Account locked",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
-            detail=f"Account locked due to too many failed attempts. Try again later."
+            detail=f"Account locked due to too many failed attempts. Try again later.",
         )
 
     # Check if user is active
@@ -127,11 +151,10 @@ async def login(
             email=login_data.email,
             reason="Account deactivated",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is deactivated"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is deactivated"
         )
 
     # Check if user has a password (OAuth users don't have passwords)
@@ -140,11 +163,11 @@ async def login(
             email=login_data.email,
             reason="OAuth account - use Google Sign In",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="This account uses Google Sign In. Please use Google to login."
+            detail="This account uses Google Sign In. Please use Google to login.",
         )
 
     # Verify password
@@ -154,11 +177,11 @@ async def login(
             email=login_data.email,
             reason="Invalid password",
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     # Reset login attempts on successful login
@@ -167,10 +190,7 @@ async def login(
 
     # Create tokens with audit logging
     access_token, refresh_token, token_family = log_and_create_tokens(
-        user_id=user.id,
-        email=user.email,
-        ip_address=ip_address,
-        user_agent=user_agent
+        user_id=user.id, email=user.email, ip_address=ip_address, user_agent=user_agent
     )
 
     # Store refresh token family in database
@@ -183,24 +203,19 @@ async def login(
 
     # Log successful login
     audit_logger.log_login_success(
-        user_id=user.id,
-        email=user.email,
-        ip_address=ip_address,
-        user_agent=user_agent
+        user_id=user.id, email=user.email, ip_address=ip_address, user_agent=user_agent
     )
 
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_data: RefreshTokenRequest,
-    request: Request,
-    db: Session = Depends(get_db)
+    refresh_data: RefreshTokenRequest, request: Request, db: Session = Depends(get_db)
 ):
     """
     Refresh access token using refresh token.
@@ -223,23 +238,21 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many refresh attempts. Retry after {e.retry_after} seconds.",
-            headers={"Retry-After": str(e.retry_after)}
+            headers={"Retry-After": str(e.retry_after)},
         )
 
     # Verify refresh token
     token_data = verify_token(refresh_data.refresh_token, token_type="refresh")
     if not token_data:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     # Find user
     user = db.exec(select(User).where(User.id == token_data.user_id)).first()
     if not user or not user.refresh_token_hash:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     # Check if refresh token is expired
@@ -247,8 +260,7 @@ async def refresh_token(
     refresh_token_expires = _as_utc_aware(user.refresh_token_expires)
     if refresh_token_expires and refresh_token_expires < now:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token expired"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
         )
 
     # Verify refresh token hash
@@ -259,7 +271,7 @@ async def refresh_token(
             audit_logger.log_token_reuse_detected(
                 user_id=user.id,
                 token_family=token_data.token_family,
-                ip_address=ip_address
+                ip_address=ip_address,
             )
 
         # Clear user's refresh token
@@ -270,7 +282,7 @@ async def refresh_token(
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token - token reuse detected"
+            detail="Invalid refresh token - token reuse detected",
         )
 
     # Revoke old refresh token (add to blacklist)
@@ -283,7 +295,7 @@ async def refresh_token(
         email=user.email,
         ip_address=ip_address,
         user_agent=user_agent,
-        token_family=token_data.token_family  # Maintain same family
+        token_family=token_data.token_family,  # Maintain same family
     )
 
     # Update stored refresh token
@@ -295,15 +307,12 @@ async def refresh_token(
     db.commit()
 
     # Log token refresh
-    audit_logger.log_token_refreshed(
-        user_id=user.id,
-        ip_address=ip_address
-    )
+    audit_logger.log_token_refreshed(user_id=user.id, ip_address=ip_address)
 
     return Token(
         access_token=access_token,
         refresh_token=new_refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
@@ -311,7 +320,7 @@ async def refresh_token(
 async def logout(
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Logout and revoke all tokens.
@@ -334,22 +343,17 @@ async def logout(
 
     # Log logout
     audit_logger.log_token_revoked(
-        user_id=current_user.id,
-        reason="User logout",
-        ip_address=ip_address
+        user_id=current_user.id, reason="User logout", ip_address=ip_address
     )
 
-    return {
-        "message": "Successfully logged out",
-        "tokens_revoked": revoked_count
-    }
+    return {"message": "Successfully logged out", "tokens_revoked": revoked_count}
 
 
 @router.post("/logout-all-devices")
 async def logout_all_devices(
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Logout from all devices by revoking all tokens.
@@ -372,24 +376,23 @@ async def logout_all_devices(
 
     # Log logout
     audit_logger.log_token_revoked(
-        user_id=current_user.id,
-        reason="Logout from all devices",
-        ip_address=ip_address
+        user_id=current_user.id, reason="Logout from all devices", ip_address=ip_address
     )
 
     return {
         "message": "Successfully logged out from all devices",
-        "tokens_revoked": revoked_count
+        "tokens_revoked": revoked_count,
     }
 
 
 @router.get("/me", response_model=UserProfile)
 async def get_current_user_profile(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """Get current user profile."""
-    user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
+    user_type = db.exec(
+        select(UserType).where(UserType.id == current_user.user_type_id)
+    ).first()
 
     return UserProfile(
         id=current_user.id,
@@ -399,14 +402,13 @@ async def get_current_user_profile(
         is_active=current_user.is_active,
         is_email_verified=current_user.is_email_verified,
         last_login=current_user.last_login,
-        created_at=current_user.created_at
+        created_at=current_user.created_at,
     )
 
 
 @router.get("/audit-log")
 async def get_audit_log(
-    current_user: User = Depends(get_current_active_user),
-    limit: int = 50
+    current_user: User = Depends(get_current_active_user), limit: int = 50
 ):
     """
     Get audit log for the current user.
@@ -415,22 +417,14 @@ async def get_audit_log(
     implement proper authorization.
     """
     audit_logger = get_audit_logger()
-    events = audit_logger.get_events(
-        user_id=current_user.id,
-        limit=limit
-    )
+    events = audit_logger.get_events(user_id=current_user.id, limit=limit)
 
-    return {
-        "events": [event.to_dict() for event in events],
-        "count": len(events)
-    }
+    return {"events": [event.to_dict() for event in events], "count": len(events)}
 
 
 @router.post("/register", response_model=Dict[str, str])
 async def register(
-    register_data: RegisterRequest,
-    request: Request,
-    db: Session = Depends(get_db)
+    register_data: RegisterRequest, request: Request, db: Session = Depends(get_db)
 ):
     """
     Register a new user account.
@@ -453,15 +447,16 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many registration attempts. Retry after {e.retry_after} seconds.",
-            headers={"Retry-After": str(e.retry_after)}
+            headers={"Retry-After": str(e.retry_after)},
         )
 
     # Check if user already exists
-    existing_user = db.exec(select(User).where(User.email == register_data.email)).first()
+    existing_user = db.exec(
+        select(User).where(User.email == register_data.email)
+    ).first()
     if existing_user:
         # Don't reveal if email exists (prevent enumeration)
         audit_logger.log_event(
-
             AuditEvent(
                 event_type=AuditEventType.ACCOUNT_CREATED,
                 severity=AuditEventSeverity.WARNING,
@@ -469,20 +464,20 @@ async def register(
                 email=register_data.email,
                 ip_address=ip_address,
                 success=False,
-                error_message="Email already registered"
+                error_message="Email already registered",
             )
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
     # Get user type
-    user_type = db.exec(select(UserType).where(UserType.name == register_data.user_type)).first()
+    user_type = db.exec(
+        select(UserType).where(UserType.name == register_data.user_type)
+    ).first()
     if not user_type:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user type"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user type"
         )
 
     # Create new user
@@ -494,23 +489,24 @@ async def register(
         user_type_id=user_type.id,
         is_email_verified=False,
         email_verification_token=generate_token(),
-        email_verification_expires=datetime.now(timezone.utc) + timedelta(hours=24)
+        email_verification_expires=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    db.flush()  # Assigns user.id without committing — keeps transaction open
 
-    # Auto-create volunteer profile for volunteer users
+    # Auto-create volunteer profile atomically with user (single commit)
     if register_data.user_type == "volunteer":
-        volunteer_count = len(volunteer_crud.get_volunteers(db))
-        volunteer_id_str = f"VLT{volunteer_count + 1:03d}"
-        volunteer_data = VolunteerCreate(
+        volunteer_count = db.exec(select(func.count()).select_from(Volunteer)).one()
+        volunteer = Volunteer(
             user_id=user.id,
-            volunteer_id=volunteer_id_str,
-            joined_date=date.today()
+            volunteer_id=f"VLT{volunteer_count + 1:03d}",
+            joined_date=date.today(),
         )
-        volunteer_crud.create_volunteer(db, volunteer_data)
+        db.add(volunteer)
+
+    db.commit()  # Commits user (and volunteer if applicable) together
+    db.refresh(user)
 
     # Log account creation
 
@@ -524,30 +520,26 @@ async def register(
             ip_address=ip_address,
             user_agent=user_agent,
             success=True,
-            details={"user_type": register_data.user_type}
+            details={"user_type": register_data.user_type},
         )
     )
 
     # Send verification email
     try:
         await send_verification_email(
-            email=user.email,
-            token=user.email_verification_token,
-            name=user.name
+            email=user.email, token=user.email_verification_token, name=user.name
         )
     except Exception as e:
         logger.error(f"Failed to send verification email to {user.email}: {e}")
         # Continue even if email fails - user is registered
 
-    return {"message": "User registered successfully. Please check your email to verify your account."}
+    return {
+        "message": "User registered successfully. Please check your email to verify your account."
+    }
 
 
 @router.post("/verify-email")
-async def verify_email(
-    token: str,
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def verify_email(token: str, request: Request, db: Session = Depends(get_db)):
     """
     Verify user email address.
 
@@ -564,7 +556,7 @@ async def verify_email(
     if not user or not user.email_verification_expires:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
+            detail="Invalid or expired verification token",
         )
 
     now = datetime.now(timezone.utc)
@@ -572,7 +564,7 @@ async def verify_email(
     if email_verification_expires and email_verification_expires < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification token has expired"
+            detail="Verification token has expired",
         )
 
     # Verify email and clear token
@@ -591,7 +583,7 @@ async def verify_email(
             user_id=user.id,
             email=user.email,
             ip_address=ip_address,
-            success=True
+            success=True,
         )
     )
 
@@ -602,7 +594,7 @@ async def verify_email(
 async def resend_verification(
     request_data: ResendVerificationRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Resend email verification link.
@@ -620,12 +612,13 @@ async def resend_verification(
 
     if not user:
         # Don't reveal if email exists or not
-        return {"message": "If an account with this email exists, a verification email will be sent."}
+        return {
+            "message": "If an account with this email exists, a verification email will be sent."
+        }
 
     if user.is_email_verified:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already verified"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already verified"
         )
 
     # Generate new verification token
@@ -636,9 +629,7 @@ async def resend_verification(
     # Send verification email
     try:
         await send_verification_email(
-            email=user.email,
-            token=user.email_verification_token,
-            name=user.name
+            email=user.email, token=user.email_verification_token, name=user.name
         )
     except Exception as e:
         logger.error(f"Failed to send verification email to {user.email}: {e}")
@@ -652,7 +643,7 @@ async def resend_verification(
             user_id=user.id,
             email=user.email,
             ip_address=ip_address,
-            success=True
+            success=True,
         )
     )
 
@@ -661,9 +652,7 @@ async def resend_verification(
 
 @router.post("/forgot-password")
 async def forgot_password(
-    reset_data: PasswordResetRequest,
-    request: Request,
-    db: Session = Depends(get_db)
+    reset_data: PasswordResetRequest, request: Request, db: Session = Depends(get_db)
 ):
     """
     Request password reset link.
@@ -684,7 +673,7 @@ async def forgot_password(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many password reset attempts. Retry after {e.retry_after} seconds.",
-            headers={"Retry-After": str(e.retry_after)}
+            headers={"Retry-After": str(e.retry_after)},
         )
 
     user = db.exec(select(User).where(User.email == reset_data.email)).first()
@@ -698,9 +687,7 @@ async def forgot_password(
         # Send password reset email
         try:
             await send_password_reset_email(
-                email=user.email,
-                token=user.password_reset_token,
-                name=user.name
+                email=user.email, token=user.password_reset_token, name=user.name
             )
         except Exception as e:
             logger.error(f"Failed to send password reset email to {user.email}: {e}")
@@ -714,19 +701,19 @@ async def forgot_password(
                 user_id=user.id,
                 email=user.email,
                 ip_address=ip_address,
-                success=True
+                success=True,
             )
         )
 
     # Always return success to prevent email enumeration
-    return {"message": "If an account with this email exists, you will receive a password reset link."}
+    return {
+        "message": "If an account with this email exists, you will receive a password reset link."
+    }
 
 
 @router.post("/reset-password")
 async def reset_password(
-    reset_data: PasswordReset,
-    request: Request,
-    db: Session = Depends(get_db)
+    reset_data: PasswordReset, request: Request, db: Session = Depends(get_db)
 ):
     """
     Reset password using reset token.
@@ -740,20 +727,21 @@ async def reset_password(
     ip_address = get_client_ip(request)
     audit_logger = get_audit_logger()
 
-    user = db.exec(select(User).where(User.password_reset_token == reset_data.token)).first()
+    user = db.exec(
+        select(User).where(User.password_reset_token == reset_data.token)
+    ).first()
 
     if not user or not user.password_reset_expires:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
+            detail="Invalid or expired reset token",
         )
 
     now = datetime.now(timezone.utc)
     password_reset_expires = _as_utc_aware(user.password_reset_expires)
     if password_reset_expires and password_reset_expires < now:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reset token has expired"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token has expired"
         )
 
     # Update password and clear reset token
@@ -781,7 +769,7 @@ async def reset_password(
             user_id=user.id,
             email=user.email,
             ip_address=ip_address,
-            success=True
+            success=True,
         )
     )
 
@@ -793,7 +781,7 @@ async def change_password(
     password_data: ChangePassword,
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Change password for authenticated user.
@@ -810,7 +798,6 @@ async def change_password(
     # Verify current password
     if not verify_password(password_data.current_password, current_user.password_hash):
         audit_logger.log_event(
-
             AuditEvent(
                 event_type=AuditEventType.PASSWORD_CHANGED,
                 severity=AuditEventSeverity.WARNING,
@@ -819,12 +806,11 @@ async def change_password(
                 email=current_user.email,
                 ip_address=ip_address,
                 success=False,
-                error_message="Incorrect current password"
+                error_message="Incorrect current password",
             )
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect current password"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password"
         )
 
     # Update password
@@ -842,44 +828,43 @@ async def change_password(
 
     # Log password change
     audit_logger.log_password_changed(
-        user_id=current_user.id,
-        email=current_user.email,
-        ip_address=ip_address
+        user_id=current_user.id, email=current_user.email, ip_address=ip_address
     )
 
-    return {"message": "Password changed successfully. Please login again with your new password."}
+    return {
+        "message": "Password changed successfully. Please login again with your new password."
+    }
 
 
 @router.get("/permissions", response_model=Dict[str, Any])
 async def get_user_permissions(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """
     Get current user's permissions and dashboard configuration.
 
     Returns user type, permissions, and dashboard config.
     """
-    user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
+    user_type = db.exec(
+        select(UserType).where(UserType.id == current_user.user_type_id)
+    ).first()
 
     if not user_type:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User type not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User type not found"
         )
 
     return {
         "user_type": user_type.name,
         "permissions": user_type.permissions,
         "dashboard_config": user_type.dashboard_config,
-        "description": user_type.description
+        "description": user_type.description,
     }
 
 
 @router.get("/validate-token", response_model=Dict[str, Any])
 async def validate_token(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """
     Validate current JWT token and return user info.
@@ -887,7 +872,9 @@ async def validate_token(
     Does not require active user (just valid token).
     """
     try:
-        user_type = db.exec(select(UserType).where(UserType.id == current_user.user_type_id)).first()
+        user_type = db.exec(
+            select(UserType).where(UserType.id == current_user.user_type_id)
+        ).first()
 
         return {
             "valid": True,
@@ -897,8 +884,8 @@ async def validate_token(
                 "email": current_user.email,
                 "user_type": user_type.name if user_type else None,
                 "is_active": current_user.is_active,
-                "is_email_verified": current_user.is_email_verified
-            }
+                "is_email_verified": current_user.is_email_verified,
+            },
         }
     except Exception:
         return {"valid": False, "user": None}
@@ -917,7 +904,7 @@ async def google_login(request: Request):
     if not validate_google_oauth_config():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google Sign In is not configured on this server"
+            detail="Google Sign In is not configured on this server",
         )
 
     # Generate CSRF protection state token
@@ -929,17 +916,12 @@ async def google_login(request: Request):
     # Get authorization URL
     auth_url = get_google_oauth_url(state)
 
-    return GoogleAuthURL(
-        authorization_url=auth_url,
-        state=state
-    )
+    return GoogleAuthURL(authorization_url=auth_url, state=state)
 
 
 @router.post("/google/callback", response_model=Token)
 async def google_callback(
-    callback_data: GoogleAuthCallback,
-    request: Request,
-    db: Session = Depends(get_db)
+    callback_data: GoogleAuthCallback, request: Request, db: Session = Depends(get_db)
 ):
     """
     Handle Google OAuth callback and create/login user.
@@ -959,26 +941,26 @@ async def google_callback(
     if not tokens:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to exchange authorization code"
+            detail="Failed to exchange authorization code",
         )
 
     # Get user info from Google
-    user_info = await get_google_user_info(tokens.get('access_token'))
+    user_info = await get_google_user_info(tokens.get("access_token"))
     if not user_info:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to fetch user information from Google"
+            detail="Failed to fetch user information from Google",
         )
 
-    email = user_info.get('email')
-    google_id = user_info.get('sub')  # Google's unique user ID
-    name = user_info.get('name')
-    picture = user_info.get('picture')
+    email = user_info.get("email")
+    google_id = user_info.get("sub")  # Google's unique user ID
+    name = user_info.get("name")
+    picture = user_info.get("picture")
 
     if not email or not google_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user information from Google"
+            detail="Invalid user information from Google",
         )
 
     # Check if user exists
@@ -994,48 +976,65 @@ async def google_callback(
             db.commit()
             db.refresh(user)
 
+        # Recover orphaned accounts: create missing volunteer profile if absent
+        if (
+            user.user_type.name == "volunteer"
+            and not volunteer_crud.get_volunteer_by_user_id(db, user.id)
+        ):
+            volunteer_count = db.exec(select(func.count()).select_from(Volunteer)).one()
+            volunteer = Volunteer(
+                user_id=user.id,
+                volunteer_id=f"VLT{volunteer_count + 1:03d}",
+                joined_date=date.today(),
+            )
+            db.add(volunteer)
+            db.commit()
+            logger.info("Recovered missing volunteer profile for user_id=%s", user.id)
+
         # Log successful login
         audit_logger.log_login_success(
             user_id=user.id,
             email=user.email,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
     else:
         # New user - create account
         # Get default user type (volunteer)
-        user_type = db.exec(select(UserType).where(UserType.name == "volunteer")).first()
+        user_type = db.exec(
+            select(UserType).where(UserType.name == "volunteer")
+        ).first()
         if not user_type:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Default user type not found"
+                detail="Default user type not found",
             )
 
         # Create new user
         user = User(
-            name=name or email.split('@')[0],
+            name=name or email.split("@")[0],
             email=email,
             oauth_provider="google",
             oauth_provider_id=google_id,
             profile_picture=picture,
             user_type_id=user_type.id,
             is_email_verified=True,  # Google emails are verified
-            password_hash=None  # OAuth users don't have passwords
+            password_hash=None,  # OAuth users don't have passwords
         )
 
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        db.flush()  # Assigns user.id without committing — keeps transaction open
 
-        # Auto-create volunteer profile for new Google OAuth users
-        volunteer_count = len(volunteer_crud.get_volunteers(db))
-        volunteer_id_str = f"VLT{volunteer_count + 1:03d}"
-        volunteer_data = VolunteerCreate(
+        # Auto-create volunteer profile atomically with user (single commit)
+        volunteer_count = db.exec(select(func.count()).select_from(Volunteer)).one()
+        volunteer = Volunteer(
             user_id=user.id,
-            volunteer_id=volunteer_id_str,
-            joined_date=date.today()
+            volunteer_id=f"VLT{volunteer_count + 1:03d}",
+            joined_date=date.today(),
         )
-        volunteer_crud.create_volunteer(db, volunteer_data)
+        db.add(volunteer)
+        db.commit()  # Commits both user and volunteer together
+        db.refresh(user)
 
         # Log account creation
         audit_logger.log_event(
@@ -1048,16 +1047,13 @@ async def google_callback(
                 ip_address=ip_address,
                 user_agent=user_agent,
                 success=True,
-                details={"oauth_provider": "google", "user_type": "volunteer"}
+                details={"oauth_provider": "google", "user_type": "volunteer"},
             )
         )
 
     # Create tokens with audit logging
     access_token, refresh_token, token_family = log_and_create_tokens(
-        user_id=user.id,
-        email=user.email,
-        ip_address=ip_address,
-        user_agent=user_agent
+        user_id=user.id, email=user.email, ip_address=ip_address, user_agent=user_agent
     )
 
     # Store refresh token family in database
@@ -1072,41 +1068,31 @@ async def google_callback(
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
+
 
 @router.get("/status", response_model=Dict[str, Any])
 async def get_auth_status(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    authorization: Optional[str] = Header(None), db: Session = Depends(get_db)
 ):
     """Check authentication status without requiring valid token."""
     if not authorization or not authorization.startswith("Bearer "):
-        return {
-            "authenticated": False,
-            "user": None,
-            "message": "No token provided"
-        }
+        return {"authenticated": False, "user": None, "message": "No token provided"}
 
     token = authorization.split(" ")[1]
     token_data = verify_token(token)
 
     if not token_data:
-        return {
-            "authenticated": False,
-            "user": None,
-            "message": "Invalid token"
-        }
+        return {"authenticated": False, "user": None, "message": "Invalid token"}
 
     user = db.exec(select(User).where(User.id == token_data.user_id)).first()
     if not user:
-        return {
-            "authenticated": False,
-            "user": None,
-            "message": "User not found"
-        }
+        return {"authenticated": False, "user": None, "message": "User not found"}
 
-    user_type = db.exec(select(UserType).where(UserType.id == user.user_type_id)).first()
+    user_type = db.exec(
+        select(UserType).where(UserType.id == user.user_type_id)
+    ).first()
 
     return {
         "authenticated": True,
@@ -1118,7 +1104,7 @@ async def get_auth_status(
             "is_active": user.is_active,
             "is_email_verified": user.is_email_verified,
             "permissions": user_type.permissions if user_type else None,
-            "dashboard_config": user_type.dashboard_config if user_type else None
+            "dashboard_config": user_type.dashboard_config if user_type else None,
         },
-        "message": "Valid token"
+        "message": "Valid token",
     }

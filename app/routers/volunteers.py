@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
-from sqlmodel import Session
+from sqlmodel import Session, select, func
 from typing import List, Optional
 from datetime import date
 
@@ -85,7 +85,7 @@ def register_volunteer(
             )
 
         # Generate volunteer ID
-        volunteer_count = len(volunteer_crud.get_volunteers(db))
+        volunteer_count = db.exec(select(func.count()).select_from(Volunteer)).one()
         volunteer_id = f"VLT{volunteer_count + 1:03d}"
 
         # Create volunteer profile

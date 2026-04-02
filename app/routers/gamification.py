@@ -930,9 +930,40 @@ async def get_leaderboard(
         db, leaderboard_type, timeframe
     )
     if not leaderboard:
+        # No pre-generated leaderboard exists — generate it on demand
+        try:
+            if leaderboard_type == "points":
+                GamificationService.generate_points_leaderboard(db, timeframe)
+            elif leaderboard_type == "hours":
+                GamificationService.generate_hours_leaderboard(db, timeframe)
+            elif leaderboard_type == "projects":
+                GamificationService.generate_projects_leaderboard(db, timeframe)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid leaderboard type '{leaderboard_type}'. Must be points, hours, or projects.",
+                )
+            leaderboard = leaderboard_crud.get_current_leaderboard(
+                db, leaderboard_type, timeframe
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "Failed to auto-generate leaderboard %s/%s: %s",
+                leaderboard_type,
+                timeframe,
+                e,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate leaderboard",
+            )
+
+    if not leaderboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No leaderboard found for {leaderboard_type}/{timeframe}",
+            detail=f"No leaderboard data available for {leaderboard_type}/{timeframe}",
         )
 
     return leaderboard
