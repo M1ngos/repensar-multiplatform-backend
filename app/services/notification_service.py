@@ -3,6 +3,7 @@
 Notification Service for creating, storing, and delivering notifications.
 Integrates with EventBus for real-time delivery via SSE.
 """
+
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -12,6 +13,22 @@ from app.models.analytics import Notification, NotificationType
 from app.services.event_bus import EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
+
+
+class NotificationCategory:
+    """Notification categories for preference checking."""
+
+    TASK_UPDATE = "task_update"
+    PROJECT_UPDATE = "project_update"
+    GAMIFICATION = "gamification"
+    GENERAL = "general"
+
+
+def _get_notification_preferences(db: Session, user_id: int):
+    """Lazy import to avoid circular dependency."""
+    from app.services.preferences_service import get_notification_preferences
+
+    return get_notification_preferences(db, user_id)
 
 
 class NotificationService:
@@ -27,10 +44,12 @@ class NotificationService:
         related_project_id: Optional[int] = None,
         related_task_id: Optional[int] = None,
         expires_at: Optional[datetime] = None,
-        broadcast: bool = True
-    ) -> Notification:
+        broadcast: bool = True,
+        category: str = NotificationCategory.GENERAL,
+    ) -> Optional[Notification]:
         """
         Create and store a notification, then broadcast it via EventBus.
+        Respects user in-app notification preferences.
 
         Args:
             db: Database session
@@ -42,10 +61,45 @@ class NotificationService:
             related_task_id: Optional related task ID
             expires_at: Optional expiration datetime
             broadcast: Whether to broadcast via EventBus (default: True)
+            category: Notification category for preference checking (task_update, project_update, gamification, general)
 
         Returns:
-            Created Notification object
+            Created Notification object, or None if preferences do not allow it
         """
+        # Check user's in-app notification preferences
+        prefs = _get_notification_preferences(db, user_id)
+
+        if not prefs.in_app_notifications_enabled:
+            logger.info(f"User {user_id} has disabled in-app notifications, skipping")
+            return None
+
+        if (
+            category == NotificationCategory.TASK_UPDATE
+            and not prefs.can_show_in_app_task_updates
+        ):
+            logger.info(
+                f"User {user_id} has disabled task update notifications, skipping"
+            )
+            return None
+
+        if (
+            category == NotificationCategory.PROJECT_UPDATE
+            and not prefs.can_show_in_app_project_updates
+        ):
+            logger.info(
+                f"User {user_id} has disabled project update notifications, skipping"
+            )
+            return None
+
+        if (
+            category == NotificationCategory.GAMIFICATION
+            and not prefs.can_show_in_app_gamification
+        ):
+            logger.info(
+                f"User {user_id} has disabled gamification notifications, skipping"
+            )
+            return None
+
         notification = Notification(
             user_id=user_id,
             title=title,
@@ -54,14 +108,16 @@ class NotificationService:
             related_project_id=related_project_id,
             related_task_id=related_task_id,
             expires_at=expires_at,
-            is_read=False
+            is_read=False,
         )
 
         db.add(notification)
         db.commit()
         db.refresh(notification)
 
-        logger.info(f"Created notification {notification.id} for user {user_id}: {title}")
+        logger.info(
+            f"Created notification {notification.id} for user {user_id}: {title}"
+        )
 
         # Broadcast to SSE clients via EventBus
         if broadcast:
@@ -77,9 +133,9 @@ class NotificationService:
                         "type": notification_type.value,
                         "related_project_id": related_project_id,
                         "related_task_id": related_task_id,
-                        "created_at": notification.created_at.isoformat()
+                        "created_at": notification.created_at.isoformat(),
                     },
-                    user_id=user_id
+                    user_id=user_id,
                 )
             except Exception as e:
                 logger.error(f"Failed to broadcast notification: {e}")
@@ -95,10 +151,12 @@ class NotificationService:
         notification_type: NotificationType = NotificationType.info,
         related_project_id: Optional[int] = None,
         related_task_id: Optional[int] = None,
-        expires_at: Optional[datetime] = None
+        expires_at: Optional[datetime] = None,
+        category: str = NotificationCategory.GENERAL,
     ) -> List[Notification]:
         """
         Create notifications for multiple users at once.
+        Respects each user notification preferences.
 
         Args:
             db: Database session
@@ -109,6 +167,7 @@ class NotificationService:
             related_project_id: Optional related project ID
             related_task_id: Optional related task ID
             expires_at: Optional expiration datetime
+            category: Notification category for preference checking
 
         Returns:
             List of created Notification objects
@@ -123,9 +182,13 @@ class NotificationService:
                 notification_type=notification_type,
                 related_project_id=related_project_id,
                 related_task_id=related_task_id,
-                expires_at=expires_at
+                expires_at=expires_at,
+                category=category,
             )
-            notifications.append(notification)
+            if (
+                notification
+            ):  # Only append if notification was created (preferences allowed)
+                notifications.append(notification)
 
         logger.info(f"Created {len(notifications)} bulk notifications: {title}")
         return notifications
@@ -136,7 +199,7 @@ class NotificationService:
         user_id: int,
         unread_only: bool = False,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> tuple[List[Notification], int]:
         """
         Get notifications for a user with pagination.
@@ -161,7 +224,7 @@ class NotificationService:
         query = query.where(
             or_(
                 Notification.expires_at == None,
-                Notification.expires_at > datetime.utcnow()
+                Notification.expires_at > datetime.utcnow(),
             )
         )
 
@@ -178,7 +241,9 @@ class NotificationService:
         return list(notifications), total
 
     @staticmethod
-    def mark_as_read(db: Session, notification_id: int, user_id: int) -> Optional[Notification]:
+    def mark_as_read(
+        db: Session, notification_id: int, user_id: int
+    ) -> Optional[Notification]:
         """
         Mark a notification as read.
 
@@ -218,10 +283,7 @@ class NotificationService:
             Number of notifications marked as read
         """
         query = select(Notification).where(
-            and_(
-                Notification.user_id == user_id,
-                Notification.is_read == False
-            )
+            and_(Notification.user_id == user_id, Notification.is_read == False)
         )
         notifications = db.exec(query).all()
 
@@ -273,7 +335,7 @@ class NotificationService:
         query = select(Notification).where(
             and_(
                 Notification.expires_at != None,
-                Notification.expires_at <= datetime.utcnow()
+                Notification.expires_at <= datetime.utcnow(),
             )
         )
         expired_notifications = db.exec(query).all()
@@ -304,8 +366,8 @@ class NotificationService:
                 Notification.is_read == False,
                 or_(
                     Notification.expires_at == None,
-                    Notification.expires_at > datetime.utcnow()
-                )
+                    Notification.expires_at > datetime.utcnow(),
+                ),
             )
         )
         notifications = db.exec(query).all()
@@ -314,14 +376,15 @@ class NotificationService:
 
 # Convenience functions for common notification patterns
 
+
 async def notify_task_assigned(
     db: Session,
     user_id: int,
     task_id: int,
     task_title: str,
-    project_id: Optional[int] = None
+    project_id: Optional[int] = None,
 ):
-    """Notify a user that they've been assigned to a task."""
+    """Notify a user that they have been assigned to a task."""
     return await NotificationService.create_notification(
         db=db,
         user_id=user_id,
@@ -329,7 +392,8 @@ async def notify_task_assigned(
         message=f'You have been assigned to task: "{task_title}"',
         notification_type=NotificationType.info,
         related_task_id=task_id,
-        related_project_id=project_id
+        related_project_id=project_id,
+        category=NotificationCategory.TASK_UPDATE,
     )
 
 
@@ -340,7 +404,7 @@ async def notify_task_status_changed(
     task_title: str,
     old_status: str,
     new_status: str,
-    project_id: Optional[int] = None
+    project_id: Optional[int] = None,
 ):
     """Notify a user that a task status has changed."""
     return await NotificationService.create_notification(
@@ -350,15 +414,13 @@ async def notify_task_status_changed(
         message=f'Task "{task_title}" status changed from {old_status} to {new_status}',
         notification_type=NotificationType.info,
         related_task_id=task_id,
-        related_project_id=project_id
+        related_project_id=project_id,
+        category=NotificationCategory.TASK_UPDATE,
     )
 
 
 async def notify_timelog_approved(
-    db: Session,
-    user_id: int,
-    hours: float,
-    project_id: Optional[int] = None
+    db: Session, user_id: int, hours: float, project_id: Optional[int] = None
 ):
     """Notify a volunteer that their time log has been approved."""
     return await NotificationService.create_notification(
@@ -367,15 +429,13 @@ async def notify_timelog_approved(
         title="Time Log Approved",
         message=f"{hours} hours of volunteer work have been approved!",
         notification_type=NotificationType.success,
-        related_project_id=project_id
+        related_project_id=project_id,
+        category=NotificationCategory.TASK_UPDATE,
     )
 
 
 async def notify_sync_conflict(
-    db: Session,
-    user_id: int,
-    entity_type: str,
-    entity_id: int
+    db: Session, user_id: int, entity_type: str, entity_id: int
 ):
     """Notify a user about a sync conflict that needs resolution."""
     return await NotificationService.create_notification(
@@ -384,5 +444,6 @@ async def notify_sync_conflict(
         title="Sync Conflict Detected",
         message=f"A conflict was detected in {entity_type} (ID: {entity_id}). Please review and resolve.",
         notification_type=NotificationType.warning,
-        expires_at=datetime.utcnow() + timedelta(days=7)
+        expires_at=datetime.utcnow() + timedelta(days=7),
+        category=NotificationCategory.GENERAL,
     )

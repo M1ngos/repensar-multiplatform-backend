@@ -1,6 +1,7 @@
 """
 Email service for sending transactional emails.
 Supports async email sending with Jinja2 templates.
+Includes preference checking for user email settings.
 """
 
 import os
@@ -13,8 +14,10 @@ import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from sqlmodel import Session
 
 from app.core.config import settings
+from app.services.preferences_service import get_notification_preferences
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +27,48 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates" / "email"
 # Initialize Jinja2 environment
 jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
-    autoescape=select_autoescape(['html', 'xml'])
+    autoescape=select_autoescape(["html", "xml"]),
 )
 
 
+class EmailCategory:
+    """Email categories for preference checking."""
+
+    TASK_ASSIGNED = "task_assigned"
+    TASK_COMPLETED = "task_completed"
+    PROJECT_UPDATE = "project_update"
+    WEEKLY_DIGEST = "weekly_digest"
+
+
+async def can_send_email(db: Session, user_id: int, category: str) -> bool:
+    """
+    Check if user has enabled email notifications for a specific category.
+
+    Args:
+        db: Database session
+        user_id: User ID to check preferences for
+        category: Email category (task_assigned, task_completed, project_update, weekly_digest)
+
+    Returns:
+        True if email can be sent, False if user has disabled it
+    """
+    prefs = get_notification_preferences(db, user_id)
+
+    if category == EmailCategory.TASK_ASSIGNED:
+        return prefs.can_send_email_task_assigned
+    elif category == EmailCategory.TASK_COMPLETED:
+        return prefs.can_send_email_task_completed
+    elif category == EmailCategory.PROJECT_UPDATE:
+        return prefs.can_send_email_project_updates
+    elif category == EmailCategory.WEEKLY_DIGEST:
+        return prefs.can_send_email_weekly_digest
+
+    # Default to allowing if unknown category
+    return True
+
+
 async def send_email(
-    to_email: str,
-    subject: str,
-    html_content: str,
-    text_content: Optional[str] = None
+    to_email: str, subject: str, html_content: str, text_content: Optional[str] = None
 ) -> bool:
     """
     Send an email using aiosmtplib.
@@ -64,7 +100,8 @@ async def send_email(
         if not text_content:
             # Simple HTML stripping for plain text version
             import re
-            text_content = re.sub('<[^<]+?>', '', html_content)
+
+            text_content = re.sub("<[^<]+?>", "", html_content)
 
         part1 = MIMEText(text_content, "plain")
         part2 = MIMEText(html_content, "html")
@@ -93,11 +130,7 @@ async def send_email(
         return False
 
 
-async def send_verification_email(
-    email: str,
-    token: str,
-    name: str
-) -> bool:
+async def send_verification_email(email: str, token: str, name: str) -> bool:
     """
     Send email verification link to user.
 
@@ -115,24 +148,18 @@ async def send_verification_email(
     # Render template
     template = jinja_env.get_template("verification.html")
     html_content = template.render(
-        name=name,
-        verification_url=verification_url,
-        current_year=datetime.now().year
+        name=name, verification_url=verification_url, current_year=datetime.now().year
     )
 
     # Send email
     return await send_email(
         to_email=email,
         subject="Verify Your Email - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
 
 
-async def send_password_reset_email(
-    email: str,
-    token: str,
-    name: str
-) -> bool:
+async def send_password_reset_email(email: str, token: str, name: str) -> bool:
     """
     Send password reset link to user.
 
@@ -150,16 +177,14 @@ async def send_password_reset_email(
     # Render template
     template = jinja_env.get_template("password_reset.html")
     html_content = template.render(
-        name=name,
-        reset_url=reset_url,
-        current_year=datetime.now().year
+        name=name, reset_url=reset_url, current_year=datetime.now().year
     )
 
     # Send email
     return await send_email(
         to_email=email,
         subject="Reset Your Password - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
 
 
@@ -169,6 +194,7 @@ def send_verification_email_sync(email: str, token: str, name: str) -> None:
     Use this for background tasks that don't support async.
     """
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -191,6 +217,7 @@ def send_password_reset_email_sync(email: str, token: str, name: str) -> None:
     Use this for background tasks that don't support async.
     """
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -211,10 +238,9 @@ def send_password_reset_email_sync(email: str, token: str, name: str) -> None:
 # Newsletter Email Functions
 # ============================================================
 
+
 async def send_subscription_confirmation(
-    email: str,
-    confirmation_token: str,
-    name: Optional[str] = None
+    email: str, confirmation_token: str, name: Optional[str] = None
 ) -> bool:
     """
     Send subscription confirmation email (double opt-in).
@@ -227,27 +253,24 @@ async def send_subscription_confirmation(
     Returns:
         True if email was sent successfully
     """
-    confirmation_url = f"{settings.FRONTEND_URL}/newsletter/confirm/{confirmation_token}"
+    confirmation_url = (
+        f"{settings.FRONTEND_URL}/newsletter/confirm/{confirmation_token}"
+    )
 
     template = jinja_env.get_template("newsletter/subscription_confirm.html")
     html_content = template.render(
-        name=name,
-        confirmation_url=confirmation_url,
-        current_year=datetime.now().year
+        name=name, confirmation_url=confirmation_url, current_year=datetime.now().year
     )
 
     return await send_email(
         to_email=email,
         subject="Confirm Your Newsletter Subscription - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
 
 
 async def send_contact_autoreply(
-    email: str,
-    name: str,
-    message: str,
-    submission_id: int
+    email: str, name: str, message: str, submission_id: int
 ) -> bool:
     """
     Send auto-reply for contact form submission.
@@ -268,13 +291,13 @@ async def send_contact_autoreply(
         submission_id=submission_id,
         submitted_at=datetime.now().strftime("%B %d, %Y at %I:%M %p"),
         frontend_url=settings.FRONTEND_URL,
-        current_year=datetime.now().year
+        current_year=datetime.now().year,
     )
 
     return await send_email(
         to_email=email,
         subject="Thank You for Contacting Us - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
 
 
@@ -285,7 +308,7 @@ async def send_contact_admin_notification(
     message: str,
     submission_id: int,
     ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None
+    user_agent: Optional[str] = None,
 ) -> bool:
     """
     Send notification to admin about new contact form submission.
@@ -312,13 +335,13 @@ async def send_contact_admin_notification(
         ip_address=ip_address,
         user_agent=user_agent,
         backend_url=settings.BACKEND_URL,
-        current_year=datetime.now().year
+        current_year=datetime.now().year,
     )
 
     return await send_email(
         to_email=admin_email,
         subject=f"New Contact Form Submission from {name} - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
 
 
@@ -330,7 +353,7 @@ async def send_newsletter_email(
     subscriber_name: Optional[str] = None,
     unsubscribe_url: Optional[str] = None,
     open_tracking_url: Optional[str] = None,
-    preview_text: Optional[str] = None
+    preview_text: Optional[str] = None,
 ) -> bool:
     """
     Send a newsletter email with tracking capabilities.
@@ -359,20 +382,19 @@ async def send_newsletter_email(
         current_year=datetime.now().year,
         social_facebook="#",
         social_twitter="#",
-        social_instagram="#"
+        social_instagram="#",
     )
 
     return await send_email(
         to_email=to_email,
         subject=subject,
         html_content=full_html,
-        text_content=text_content
+        text_content=text_content,
     )
 
 
 async def send_unsubscribe_confirmation(
-    email: str,
-    resubscribe_url: Optional[str] = None
+    email: str, resubscribe_url: Optional[str] = None
 ) -> bool:
     """
     Send confirmation that user has been unsubscribed.
@@ -392,11 +414,11 @@ async def send_unsubscribe_confirmation(
         email=email,
         unsubscribed_at=datetime.now().strftime("%B %d, %Y at %I:%M %p"),
         resubscribe_url=resubscribe_url,
-        current_year=datetime.now().year
+        current_year=datetime.now().year,
     )
 
     return await send_email(
         to_email=email,
         subject="You've Been Unsubscribed - Repensar",
-        html_content=html_content
+        html_content=html_content,
     )
